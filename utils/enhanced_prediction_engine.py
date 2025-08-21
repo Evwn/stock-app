@@ -40,7 +40,7 @@ class EnhancedPredictionEngine:
         df['Price_Momentum_21'] = df['Close'] / df['Close'].shift(21) - 1
         
         # Moving averages and ratios
-        for period in [5, 10, 20, 50, 100]:
+        for period in [5, 10, 12, 20, 26, 50, 100]:
             df[f'SMA_{period}'] = df['Close'].rolling(window=period).mean()
             df[f'EMA_{period}'] = df['Close'].ewm(span=period).mean()
             df[f'Price_to_SMA_{period}'] = df['Close'] / df[f'SMA_{period}']
@@ -146,7 +146,7 @@ class EnhancedPredictionEngine:
         neg_di = 100 * pd.Series(neg_dm).rolling(period).mean() / pd.Series(true_range).rolling(period).mean()
         
         dx = 100 * np.abs(pos_di - neg_di) / (pos_di + neg_di)
-        adx = dx.rolling(period).mean()
+        adx = pd.Series(dx).rolling(period).mean()
         
         return adx
     
@@ -310,7 +310,7 @@ class EnhancedPredictionEngine:
         
         # Calculate confidence based on model agreement
         pred_variance = np.var(list(model_predictions.values()))
-        confidence = max(70.0, min(95.0, 85.0 - pred_variance * 1000))  # Scale variance to confidence
+        confidence = max(70.0, min(95.0, 85.0 - float(pred_variance * 1000)))  # Scale variance to confidence
         
         # Determine direction and strength
         if ensemble_return > 0.02:
