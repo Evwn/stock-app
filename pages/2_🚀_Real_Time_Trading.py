@@ -63,60 +63,47 @@ if 'trader' not in st.session_state:
 st.title("🚀 Real-Time Trading System")
 st.markdown("**Live Binance WebSocket Trading with Multiple Strategy Execution**")
 
-# API Key Setup Section
-with st.sidebar:
-    st.header("🔑 API Configuration")
-    
-    # Check if secrets are available
-    api_key = st.session_state.get('binance_api_key', '')
-    api_secret = st.session_state.get('binance_api_secret', '')
-    
-    if not api_key or not api_secret:
-        st.warning("⚠️ **API Keys Required**")
-        st.markdown("""
-        **Where to get your Binance API Keys:**
-        
-        1. Go to [Binance.com](https://www.binance.com)
-        2. Account → API Management
-        3. Create API Key
-        4. Enable "Enable Reading" only (no trading needed)
-        5. Copy API Key and Secret Key
-        
-        **Security Note:** We only need READ permissions for real-time data. No trading permissions required for virtual trading.
-        """)
-        
-        # API key inputs
-        input_api_key = st.text_input("API Key", type="password", help="Your Binance API Key")
-        input_api_secret = st.text_input("API Secret", type="password", help="Your Binance API Secret Key")
-        
-        if st.button("💾 Save API Keys"):
-            if input_api_key and input_api_secret:
-                st.session_state.binance_api_key = input_api_key
-                st.session_state.binance_api_secret = input_api_secret
-                st.success("✅ API Keys saved successfully!")
-                st.rerun()
-            else:
-                st.error("❌ Please provide both API Key and Secret")
-    else:
-        st.success("✅ API Keys configured")
-        if st.button("🔄 Reset API Keys"):
-            del st.session_state['binance_api_key']
-            del st.session_state['binance_api_secret']
-            st.rerun()
+# Get API keys from secrets
+api_key = os.environ.get('Api_Key')
+api_secret = os.environ.get('Secret_key')
 
-# Main content
-if api_key and api_secret:
-    # Initialize trader if not exists
-    if st.session_state.trader is None:
-        with st.spinner("🔧 Initializing Real-Time Trader..."):
-            st.session_state.trader = RealTimeTrader(api_key, api_secret)
-            if st.session_state.trader.initialize_client():
-                st.success("✅ Connected to Binance successfully!")
-            else:
-                st.error("❌ Failed to connect to Binance. Check your API keys.")
-                st.stop()
+# Sidebar info
+with st.sidebar:
+    st.header("🔧 System Status")
     
-    trader = st.session_state.trader
+    if api_key and api_secret:
+        st.success("✅ **Binance API Connected**")
+        st.info("📡 Ready for real-time trading")
+        
+        # Display trading pairs
+        st.markdown("**📊 Trading Pairs:**")
+        pairs_info = {
+            'BTCUSDT': '📈 Trend Following',
+            'ETHUSDT': '🔄 RSI Reversal', 
+            'EURUSDT': '⚡ RSI+EMA Momentum',
+            'ADAUSDT': '✅ Price Confirmation',
+            'SOLUSDT': '💥 Breakout Strategy'
+        }
+        
+        for pair, strategy in pairs_info.items():
+            st.markdown(f"• **{pair}**: {strategy}")
+            
+    else:
+        st.error("❌ **API Keys Missing**")
+        st.markdown("Contact admin to configure Binance API keys in secrets.")
+        st.stop()
+
+# Initialize trader if not exists
+if st.session_state.trader is None:
+    with st.spinner("🔧 Initializing Real-Time Trader..."):
+        st.session_state.trader = RealTimeTrader(api_key, api_secret)
+        if st.session_state.trader.initialize_client():
+            st.success("✅ Connected to Binance successfully!")
+        else:
+            st.error("❌ Failed to connect to Binance. Check your API keys in secrets.")
+            st.stop()
+
+trader = st.session_state.trader
     
     # Control Panel
     st.header("🎛️ Trading Control Panel")
@@ -305,56 +292,4 @@ if api_key and api_secret:
         time.sleep(2)  # Wait 2 seconds
         st.rerun()
 
-else:
-    # Landing page when no API keys
-    st.header("🔑 API Key Setup Required")
-    
-    st.markdown("""
-    ### Welcome to the Real-Time Trading System!
-    
-    This system provides:
-    
-    🚀 **Real-Time WebSocket Data** from Binance
-    📊 **5 Different Trading Strategies** running simultaneously
-    💰 **Virtual Trading** with realistic risk management
-    📈 **Live Charts** with trade markers and performance tracking
-    🎯 **Professional Risk Management** (1% risk, 1.5 RRR)
-    
-    #### Trading Pairs & Strategies:
-    
-    | Pair | Strategy | Logic |
-    |------|----------|-------|
-    | **BTCUSDT** | Trend Following | Buy when price > EMA(14), Sell when price < EMA(14) |
-    | **ETHUSDT** | RSI Reversal | Buy when RSI < 30, Sell when RSI > 70 |
-    | **EURUSDT** | RSI+EMA Momentum | Buy when price > EMA(14) AND RSI > 50 |
-    | **ADAUSDT** | Price Confirmation | Buy when close > prev_close AND price > EMA(14) |
-    | **SOLUSDT** | Breakout | Buy on 10-period high break, Sell on low break |
-    
-    #### Risk Management:
-    - 💎 **1% risk per trade** of virtual balance
-    - 🎯 **1.5:1 reward-to-risk ratio** 
-    - 🛑 **Automatic stop loss** at 1% from entry
-    - ✅ **Take profit** at 1.5% from entry
-    - 🔒 **One trade per pair** maximum
-    
-    **To get started, please configure your Binance API keys in the sidebar.** ➡️
-    """)
-    
-    # FAQ Section
-    with st.expander("❓ Frequently Asked Questions"):
-        st.markdown("""
-        **Q: Is this real trading?**
-        A: No, this is 100% virtual trading. No real orders are placed on Binance. We only use the API for real-time price data.
-        
-        **Q: What permissions do I need for my API key?**
-        A: Only "Enable Reading" permission is required. Do NOT enable trading permissions for security.
-        
-        **Q: How accurate is the virtual trading?**
-        A: Very accurate - we use real Binance WebSocket data, realistic slippage, and proper risk management calculations.
-        
-        **Q: Can I modify the strategies?**
-        A: The current version has fixed strategies, but you can see exactly how each one works in the code.
-        
-        **Q: How fast does it update?**
-        A: Real-time! We receive 1-minute candle updates via WebSocket as soon as they close on Binance.
-        """)
+# This section is no longer needed since we get API keys from secrets automatically
