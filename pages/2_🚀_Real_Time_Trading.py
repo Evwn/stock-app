@@ -139,49 +139,48 @@ with col_control3:
 # Trading Statistics
 if st.session_state.trading_active or trader.total_trades > 0:
     st.header("📊 Live Trading Statistics")
-        
-        stats = trader.get_trading_stats()
-        
-        col_stat1, col_stat2, col_stat3, col_stat4, col_stat5 = st.columns(5)
-        
-        with col_stat1:
-            balance_color = "🟢" if stats['total_pnl'] >= 0 else "🔴"
-            st.metric("Virtual Balance", f"${stats['virtual_balance']:.2f}", 
-                     f"{balance_color} ${stats['total_pnl']:+.2f}")
-        
-        with col_stat2:
-            st.metric("Total Trades", stats['total_trades'])
-        
-        with col_stat3:
-            win_color = "🟢" if stats['win_rate'] >= 50 else "🔴"
-            st.metric("Win Rate", f"{win_color} {stats['win_rate']:.1f}%", 
-                     f"W:{stats['winning_trades']} L:{stats['losing_trades']}")
-        
-        with col_stat4:
-            st.metric("Open Trades", stats['open_trades_count'])
-        
-        with col_stat5:
-            roi_color = "🟢" if stats['roi'] >= 0 else "🔴"
-            st.metric("ROI", f"{roi_color} {stats['roi']:+.2f}%")
-        
-        # Balance Chart
-        if trader.balance_history:
-            st.subheader("💰 Balance Over Time")
-            balance_chart = trader.create_balance_chart()
-            if balance_chart:
-                st.plotly_chart(balance_chart, use_container_width=True)
     
-    # Strategy Status and Live Charts
-    st.header("📈 Live Strategy Performance")
+    stats = trader.get_trading_stats()
     
-    # Strategy overview
-    strategies_info = {
-        'BTCUSDT': {'name': 'Trend Following', 'desc': 'EMA(14) crossover strategy', 'color': '#ff9500'},
-        'ETHUSDT': {'name': 'RSI Reversal', 'desc': 'RSI oversold/overbought', 'color': '#627eea'},
-        'EURUSDT': {'name': 'RSI+EMA Momentum', 'desc': 'Combined momentum signals', 'color': '#f7931a'},
-        'ADAUSDT': {'name': 'Price Confirmation', 'desc': 'Price action + EMA', 'color': '#0033ad'},
-        'SOLUSDT': {'name': 'Breakout', 'desc': '10-period high/low breakouts', 'color': '#9945ff'}
-    }
+    col_stat1, col_stat2, col_stat3, col_stat4, col_stat5 = st.columns(5)
+    
+    with col_stat1:
+        balance_color = "🟢" if stats['total_pnl'] >= 0 else "🔴"
+        st.metric("Virtual Balance", f"${stats['virtual_balance']:.2f}", 
+                 f"{balance_color} ${stats['total_pnl']:+.2f}")
+    
+    with col_stat2:
+        st.metric("Total Trades", stats['total_trades'])
+    
+    with col_stat3:
+        win_color = "🟢" if stats['win_rate'] >= 50 else "🔴"
+        st.metric("Win Rate", f"{win_color} {stats['win_rate']:.1f}%", 
+                 f"W:{stats['winning_trades']} L:{stats['losing_trades']}")
+    
+    with col_stat4:
+        st.metric("Open Trades", stats['open_trades_count'])
+    
+    with col_stat5:
+        roi_color = "🟢" if stats['roi'] >= 0 else "🔴"
+        st.metric("ROI", f"{roi_color} {stats['roi']:+.2f}%")
+    
+    # Balance Chart
+    if trader.balance_history:
+        st.subheader("💰 Balance Over Time")
+        balance_chart = trader.create_balance_chart()
+        if balance_chart:
+            st.plotly_chart(balance_chart, use_container_width=True)
+# Strategy Status and Live Charts
+st.header("📈 Live Strategy Performance")
+
+# Strategy overview
+strategies_info = {
+    'BTCUSDT': {'name': 'Trend Following', 'desc': 'EMA(14) crossover strategy', 'color': '#ff9500'},
+    'ETHUSDT': {'name': 'RSI Reversal', 'desc': 'RSI oversold/overbought', 'color': '#627eea'},
+    'EURUSDT': {'name': 'RSI+EMA Momentum', 'desc': 'Combined momentum signals', 'color': '#f7931a'},
+    'ADAUSDT': {'name': 'Price Confirmation', 'desc': 'Price action + EMA', 'color': '#0033ad'},
+    'SOLUSDT': {'name': 'Breakout', 'desc': '10-period high/low breakouts', 'color': '#9945ff'}
+}
     
     # Display strategy cards in columns
     col_str1, col_str2 = st.columns(2)
