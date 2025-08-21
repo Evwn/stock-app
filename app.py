@@ -15,6 +15,7 @@ from utils.financial_metrics import FinancialMetrics
 from utils.prediction_engine import StockPredictionEngine
 from utils.enhanced_prediction_engine import EnhancedPredictionEngine
 from utils.advanced_technical_analyzer import AdvancedTechnicalAnalyzer
+from utils.setup_chart_generator import SetupChartGenerator
 
 # Page configuration
 st.set_page_config(
@@ -840,6 +841,88 @@ def main():
                             st.write("Price making lower lows while RSI makes higher lows")
                         else:
                             st.write("No significant momentum divergence")
+            
+            # Historical Setup Analysis
+            with st.expander("📈 Historical Setup Performance Analysis"):
+                st.markdown("**Backtesting Previous Setups & Performance**")
+                
+                with st.spinner("🔍 Analyzing historical setups..."):
+                    historical_setups = advanced_analyzer.analyze_historical_setups()
+                
+                if historical_setups:
+                    # Performance metrics
+                    col_perf1, col_perf2, col_perf3, col_perf4 = st.columns(4)
+                    
+                    performances = [s['final_performance'] for s in historical_setups]
+                    winning_setups = [p for p in performances if p > 0]
+                    win_rate = len(winning_setups) / len(performances) * 100
+                    avg_performance = sum(performances) / len(performances)
+                    best_setup = max(performances)
+                    
+                    with col_perf1:
+                        st.metric("Total Setups", len(historical_setups))
+                    with col_perf2:
+                        win_color = "🟢" if win_rate >= 60 else "🟡" if win_rate >= 40 else "🔴"
+                        st.metric("Win Rate", f"{win_color} {win_rate:.1f}%")
+                    with col_perf3:
+                        avg_color = "🟢" if avg_performance > 0 else "🔴"
+                        st.metric("Avg Performance", f"{avg_color} {avg_performance:+.1f}%")
+                    with col_perf4:
+                        st.metric("Best Setup", f"🎯 {best_setup:+.1f}%")
+                    
+                    # Generate charts
+                    chart_generator = SetupChartGenerator()
+                    
+                    # Historical setups chart
+                    setup_chart = chart_generator.create_historical_setups_chart(data, historical_setups)
+                    st.plotly_chart(setup_chart, use_container_width=True)
+                    
+                    # Performance summary
+                    summary_chart, summary_stats = chart_generator.create_setup_performance_summary(historical_setups)
+                    if summary_chart:
+                        st.plotly_chart(summary_chart, use_container_width=True)
+                    
+                    # Detailed setup table
+                    st.subheader("📊 Historical Setup Details")
+                    
+                    setup_data = []
+                    for setup in historical_setups[-10:]:  # Show last 10 setups
+                        setup_data.append({
+                            'Date': setup['date'].strftime('%Y-%m-%d'),
+                            'Setup Type': setup['setup_type'].replace('STRONG ', ''),
+                            'Score': setup['setup_score'],
+                            'Confidence': f"{setup['confidence']}%",
+                            'Entry Price': f"${setup['entry_price']:.2f}",
+                            'Performance': f"{setup['final_performance']:+.1f}%",
+                            'Max Profit': f"{setup['max_profit']:+.1f}%",
+                            'Hit Stop': "Yes" if setup['hit_stop_loss'] else "No",
+                            'Days to Target': setup['days_to_target'] or 'N/A'
+                        })
+                    
+                    if setup_data:
+                        setup_df = pd.DataFrame(setup_data)
+                        
+                        # Color code performance
+                        def color_performance(val):
+                            if '+' in str(val):
+                                return 'color: #00ff88'
+                            elif '-' in str(val):
+                                return 'color: #ff4444'
+                            return ''
+                        
+                        styled_df = setup_df.style.applymap(color_performance, subset=['Performance', 'Max Profit'])
+                        st.dataframe(styled_df, use_container_width=True)
+                        
+                        # Download historical setups
+                        setup_csv = setup_df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Historical Setup Analysis",
+                            data=setup_csv,
+                            file_name=f"{symbol}_historical_setups_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv"
+                        )
+                else:
+                    st.info("📊 No historical setups found. This indicates the system maintains strict standards - setups are only generated when all confluence factors align perfectly.")
             
             # Analysis timestamp
             st.caption(f"Analysis completed at: {setup_analysis['analysis_timestamp']}")

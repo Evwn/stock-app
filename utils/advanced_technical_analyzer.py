@@ -390,6 +390,7 @@ class AdvancedTechnicalAnalyzer:
             primary_trend = None
             
             # Get the highest timeframe trend as primary
+            primary_trend = 'neutral'
             for tf in timeframe_hierarchy:
                 if tf in trend_alignment and trend_alignment[tf] != 'neutral':
                     primary_trend = trend_alignment[tf]
@@ -407,7 +408,7 @@ class AdvancedTechnicalAnalyzer:
         return {
             'individual_analysis': confirmations,
             'trend_alignment': trend_alignment,
-            'primary_trend': primary_trend if 'primary_trend' in locals() else 'neutral',
+            'primary_trend': primary_trend,
             'aligned_timeframes': aligned_timeframes,
             'alignment_strength': round(alignment_strength, 2),
             'alignment_quality': 'strong' if alignment_strength >= 0.75 else 'moderate' if alignment_strength >= 0.5 else 'weak'
@@ -515,15 +516,16 @@ class AdvancedTechnicalAnalyzer:
         
         # 6. Trendline support
         daily_trend_analysis = self.analyze_trend_structure(daily_data, 'daily')
-        if daily_trend_analysis['trendlines']:
-            if primary_trend == 'bullish' and 'support_trendline' in daily_trend_analysis['trendlines']:
-                trendline = daily_trend_analysis['trendlines']['support_trendline']
-                if trendline['strength'] > 0.7:
+        if daily_trend_analysis.get('trendlines'):
+            trendlines = daily_trend_analysis['trendlines']
+            if primary_trend == 'bullish' and 'support_trendline' in trendlines:
+                trendline = trendlines['support_trendline']
+                if isinstance(trendline, dict) and trendline.get('strength', 0) > 0.7:
                     setup_score += 10
                     confluence_factors.append("Strong ascending support trendline")
-            elif primary_trend == 'bearish' and 'resistance_trendline' in daily_trend_analysis['trendlines']:
-                trendline = daily_trend_analysis['trendlines']['resistance_trendline']
-                if trendline['strength'] > 0.7:
+            elif primary_trend == 'bearish' and 'resistance_trendline' in trendlines:
+                trendline = trendlines['resistance_trendline']
+                if isinstance(trendline, dict) and trendline.get('strength', 0) > 0.7:
                     setup_score += 10
                     confluence_factors.append("Strong descending resistance trendline")
         
@@ -622,6 +624,125 @@ class AdvancedTechnicalAnalyzer:
             'analysis_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'methodology_note': "No trade signal due to insufficient confluence factors"
         }
+    
+    def analyze_historical_setups(self, lookback_days=365):
+        """Analyze historical setups and their performance"""
+        if not self.timeframes or 'daily' not in self.timeframes:
+            return []
+        
+        daily_data = self.timeframes['daily']
+        if len(daily_data) < 100:  # Need sufficient data
+            return []
+        
+        historical_setups = []
+        
+        # Analyze setups going back in time (every 5 days to avoid overlap)
+        for i in range(50, len(daily_data) - 10, 5):  # Leave 10 days for performance calculation
+            try:
+                # Create subset of data up to this point
+                subset_data = daily_data.iloc[:i+1].copy()
+                
+                # Create temporary analyzer for this point in time
+                temp_analyzer = AdvancedTechnicalAnalyzer(self.symbol)
+                temp_analyzer.timeframes = {
+                    'daily': subset_data.tail(min(365, len(subset_data))),
+                    'weekly': subset_data.tail(min(730, len(subset_data))).resample('W').agg({
+                        'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
+                    }).dropna(),
+                    'monthly': subset_data.tail(min(1825, len(subset_data))).resample('M').agg({
+                        'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
+                    }).dropna()
+                }
+                
+                # Generate setup analysis for this historical point
+                setup_analysis = temp_analyzer.generate_professional_trading_setup()
+                
+                if setup_analysis and setup_analysis.get('entry_valid', False):
+                    # Calculate performance over next 5-10 days
+                    entry_price = setup_analysis['entry_price']
+                    stop_loss = setup_analysis['stop_loss']
+                    targets = setup_analysis['targets']
+                    entry_date = subset_data.index[i]
+                    
+                    # Get future prices for performance calculation
+                    future_data = daily_data.iloc[i+1:i+11]  # Next 10 days
+                    if len(future_data) > 0:
+                        max_profit = 0
+                        max_loss = 0
+                        days_to_target = None
+                        hit_stop_loss = False
+                        
+                        for day, (date, row) in enumerate(future_data.iterrows(), 1):
+                            high_price = row['High']
+                            low_price = row['Low']
+                            close_price = row['Close']
+                            
+                            # Calculate profit/loss
+                            if setup_analysis['recommendation'] == 'STRONG BUY SETUP':
+                                profit_loss = (high_price - entry_price) / entry_price * 100
+                                loss = (low_price - entry_price) / entry_price * 100
+                                
+                                # Check stop loss
+                                if stop_loss and low_price <= stop_loss:
+                                    hit_stop_loss = True
+                                    max_loss = (stop_loss - entry_price) / entry_price * 100
+                                    break
+                                
+                                # Check targets
+                                if targets and not days_to_target:
+                                    for target in targets:
+                                        if high_price >= target:
+                                            days_to_target = day
+                                            break
+                            
+                            else:  # SELL SETUP
+                                profit_loss = (entry_price - low_price) / entry_price * 100
+                                loss = (entry_price - high_price) / entry_price * 100
+                                
+                                # Check stop loss
+                                if stop_loss and high_price >= stop_loss:
+                                    hit_stop_loss = True
+                                    max_loss = (entry_price - stop_loss) / entry_price * 100
+                                    break
+                                
+                                # Check targets
+                                if targets and not days_to_target:
+                                    for target in targets:
+                                        if low_price <= target:
+                                            days_to_target = day
+                                            break
+                            
+                            max_profit = max(max_profit, profit_loss)
+                            max_loss = min(max_loss, loss)
+                        
+                        # Final close price performance
+                        final_close = future_data['Close'].iloc[-1]
+                        if setup_analysis['recommendation'] == 'STRONG BUY SETUP':
+                            final_performance = (final_close - entry_price) / entry_price * 100
+                        else:
+                            final_performance = (entry_price - final_close) / entry_price * 100
+                        
+                        historical_setups.append({
+                            'date': entry_date,
+                            'setup_type': setup_analysis['recommendation'],
+                            'setup_score': setup_analysis['setup_score'],
+                            'confidence': setup_analysis['confidence'],
+                            'entry_price': entry_price,
+                            'stop_loss': stop_loss,
+                            'targets': targets,
+                            'max_profit': round(max_profit, 2),
+                            'max_loss': round(max_loss, 2),
+                            'final_performance': round(final_performance, 2),
+                            'days_to_target': days_to_target,
+                            'hit_stop_loss': hit_stop_loss,
+                            'confluence_factors': setup_analysis.get('confluence_factors', []),
+                            'primary_trend': setup_analysis.get('primary_trend', 'unknown')
+                        })
+            
+            except Exception as e:
+                continue  # Skip this setup if there's an error
+        
+        return historical_setups
     
     def analyze(self):
         """Run complete professional technical analysis"""
