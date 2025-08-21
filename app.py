@@ -384,15 +384,39 @@ def main():
                 # Investment calculation section
                 st.subheader("💰 Investment Calculator")
                 
-                # Investment amount input
-                investment_amount = st.number_input(
-                    "Investment Amount ($)",
-                    min_value=1.0,
-                    max_value=100000.0,
-                    value=10.0,
-                    step=1.0,
-                    help="Enter the amount you want to invest"
+                # Investment input options
+                input_method = st.radio(
+                    "💰 Investment Input Method:",
+                    ["Amount ($)", "Lot Size (shares)"],
+                    horizontal=True,
+                    help="Choose to enter investment by dollar amount or number of shares"
                 )
+                
+                if input_method == "Amount ($)":
+                    investment_amount = st.number_input(
+                        "💰 Investment Amount ($)",
+                        min_value=1.0,
+                        max_value=100000.0,
+                        value=10.0,
+                        step=1.0,
+                        help="Enter the amount you want to invest"
+                    )
+                else:
+                    # Lot size input
+                    lot_size = st.number_input(
+                        "📦 Lot Size (Number of Shares)",
+                        min_value=1,
+                        max_value=100000,
+                        value=100,
+                        step=1,
+                        help="Enter the number of shares you want to buy"
+                    )
+                    
+                    # Calculate investment amount based on current price
+                    current_price = data['Close'].iloc[-1]
+                    investment_amount = lot_size * current_price
+                    
+                    st.info(f"💡 **Investment Amount**: ${investment_amount:,.2f} ({lot_size:,} shares × ${current_price:.2f})")
                 
                 # Calculate investment returns
                 if hasattr(prediction_engine, 'calculate_investment_returns'):
@@ -402,8 +426,8 @@ def main():
                     )
                 else:
                     # Fallback calculation for basic engine
-                    from utils.prediction_engine import StockPredictionEngine
-                    fallback_engine = StockPredictionEngine(data)
+                    from utils.prediction_engine import StockPredictionEngine as BasicPredictionEngine
+                    fallback_engine = BasicPredictionEngine(data)
                     investment_returns = fallback_engine.calculate_investment_returns(
                         prediction_result, 
                         investment_amount
@@ -414,7 +438,10 @@ def main():
                     investment_df = pd.DataFrame(investment_returns)
                     
                     # Display investment progression
-                    st.subheader(f"💸 ${investment_amount} Investment Projection")
+                    if input_method == "Lot Size (shares)":
+                        st.subheader(f"💸 {lot_size:,} Shares Investment Projection (${investment_amount:,.2f})")
+                    else:
+                        st.subheader(f"💸 ${investment_amount:,.2f} Investment Projection")
                     st.dataframe(investment_df, use_container_width=True)
                     
                     # Show final value prominently
