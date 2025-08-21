@@ -181,44 +181,44 @@ strategies_info = {
     'ADAUSDT': {'name': 'Price Confirmation', 'desc': 'Price action + EMA', 'color': '#0033ad'},
     'SOLUSDT': {'name': 'Breakout', 'desc': '10-period high/low breakouts', 'color': '#9945ff'}
 }
+
+# Display strategy cards in columns
+col_str1, col_str2 = st.columns(2)
+
+for i, (pair, info) in enumerate(strategies_info.items()):
+    col = col_str1 if i % 2 == 0 else col_str2
     
-    # Display strategy cards in columns
-    col_str1, col_str2 = st.columns(2)
-    
-    for i, (pair, info) in enumerate(strategies_info.items()):
-        col = col_str1 if i % 2 == 0 else col_str2
+    with col:
+        # Check if pair has open trade
+        has_open_trade = pair in trader.open_trades
+        card_class = "trade-active" if has_open_trade else "strategy-card"
         
-        with col:
-            # Check if pair has open trade
-            has_open_trade = pair in trader.open_trades
-            card_class = "trade-active" if has_open_trade else "strategy-card"
-            
+        st.markdown(f"""
+        <div class="{card_class}">
+            <h4 style="color: {info['color']}">💹 {pair}</h4>
+            <p><strong>{info['name']}</strong></p>
+            <p style="font-size: 0.9em; color: #888;">{info['desc']}</p>
+        """, unsafe_allow_html=True)
+        
+        # Show current status
+        if has_open_trade:
+            trade = trader.open_trades[pair]
+            entry_time = trade['entry_time'].strftime("%H:%M:%S")
             st.markdown(f"""
-            <div class="{card_class}">
-                <h4 style="color: {info['color']}">💹 {pair}</h4>
-                <p><strong>{info['name']}</strong></p>
-                <p style="font-size: 0.9em; color: #888;">{info['desc']}</p>
+                <p><strong>🔥 ACTIVE TRADE</strong></p>
+                <p>📍 {trade['signal']} @ ${trade['entry_price']:.4f}</p>
+                <p>🕐 Entered: {entry_time}</p>
+                <p>🎯 TP: ${trade['take_profit']:.4f} | 🛑 SL: ${trade['stop_loss']:.4f}</p>
             """, unsafe_allow_html=True)
-            
-            # Show current status
-            if has_open_trade:
-                trade = trader.open_trades[pair]
-                entry_time = trade['entry_time'].strftime("%H:%M:%S")
-                st.markdown(f"""
-                    <p><strong>🔥 ACTIVE TRADE</strong></p>
-                    <p>📍 {trade['signal']} @ ${trade['entry_price']:.4f}</p>
-                    <p>🕐 Entered: {entry_time}</p>
-                    <p>🎯 TP: ${trade['take_profit']:.4f} | 🛑 SL: ${trade['stop_loss']:.4f}</p>
-                """, unsafe_allow_html=True)
+        else:
+            # Show last price if available
+            if trader.kline_data[pair]:
+                last_price = float(list(trader.kline_data[pair])[-1]['close'])
+                st.markdown(f"<p>💲 Current: ${last_price:.4f}</p>", unsafe_allow_html=True)
             else:
-                # Show last price if available
-                if trader.kline_data[pair]:
-                    last_price = float(list(trader.kline_data[pair])[-1]['close'])
-                    st.markdown(f"<p>💲 Current: ${last_price:.4f}</p>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<p>⏳ Waiting for data...</p>", unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown("<p>⏳ Waiting for data...</p>", unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Live Price Charts
     if st.session_state.trading_active and any(trader.price_data[pair] for pair in trader.PAIRS):
