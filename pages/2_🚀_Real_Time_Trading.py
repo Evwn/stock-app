@@ -104,43 +104,41 @@ if st.session_state.trader is None:
             st.stop()
 
 trader = st.session_state.trader
-    
-    # Control Panel
-    st.header("🎛️ Trading Control Panel")
-    
-    col_control1, col_control2, col_control3 = st.columns([1, 1, 2])
-    
-    with col_control1:
-        if not st.session_state.trading_active:
-            if st.button("🚀 Start Real-Time Trading", type="primary"):
-                with st.spinner("Starting WebSocket connections..."):
-                    if trader.start_trading():
-                        st.session_state.trading_active = True
-                        st.session_state.last_update = datetime.now()
-                        st.success("✅ Real-time trading started!")
-                        time.sleep(1)
-                        st.rerun()
-        else:
-            if st.button("⏹️ Stop Trading", type="secondary"):
-                trader.stop_trading()
-                st.session_state.trading_active = False
-                st.info("⏹️ Trading stopped.")
-                st.rerun()
-    
-    with col_control2:
-        if st.button("🔄 Refresh Data"):
-            st.session_state.last_update = datetime.now()
+
+# Control Panel
+st.header("🎛️ Trading Control Panel")
+
+col_control1, col_control2, col_control3 = st.columns([1, 1, 2])
+with col_control1:
+    if not st.session_state.trading_active:
+        if st.button("🚀 Start Real-Time Trading", type="primary"):
+            with st.spinner("Starting WebSocket connections..."):
+                if trader.start_trading():
+                    st.session_state.trading_active = True
+                    st.session_state.last_update = datetime.now()
+                    st.success("✅ Real-time trading started!")
+                    time.sleep(1)
+                    st.rerun()
+    else:
+        if st.button("⏹️ Stop Trading", type="secondary"):
+            trader.stop_trading()
+            st.session_state.trading_active = False
+            st.info("⏹️ Trading stopped.")
             st.rerun()
-    
-    with col_control3:
-        if st.session_state.trading_active:
-            st.success("🟢 **LIVE TRADING ACTIVE**")
-        else:
-            st.error("🔴 **TRADING STOPPED**")
-    
-    # Trading Statistics
-    if st.session_state.trading_active or trader.total_trades > 0:
-        st.header("📊 Live Trading Statistics")
+
+with col_control2:
+    if st.button("🔄 Refresh Data"):
+        st.session_state.last_update = datetime.now()
+        st.rerun()
+
+with col_control3:
+    if st.session_state.trading_active:
+        st.success("🟢 **LIVE TRADING ACTIVE**")
+    else:
+        st.error("🔴 **TRADING STOPPED**")
+# Trading Statistics
+if st.session_state.trading_active or trader.total_trades > 0:
+    st.header("📊 Live Trading Statistics")
         
         stats = trader.get_trading_stats()
         
