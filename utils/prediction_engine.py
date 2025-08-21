@@ -359,6 +359,46 @@ class StockPredictionEngine:
             }
         except:
             return {}
+    
+    def calculate_investment_returns(self, prediction_result, initial_investment=10):
+        """
+        Calculate investment returns based on predictions
+        
+        Args:
+            prediction_result (dict): Prediction results
+            initial_investment (float): Initial investment amount in dollars
+        
+        Returns:
+            list: Investment progression over prediction period
+        """
+        if not prediction_result or 'predictions' not in prediction_result:
+            return []
+        
+        investment_progression = []
+        current_investment = initial_investment
+        current_price = prediction_result['current_price']
+        
+        # Calculate shares that can be bought
+        shares = initial_investment / current_price
+        
+        for pred in prediction_result['predictions']:
+            # Calculate new investment value based on predicted price
+            new_investment_value = shares * pred['predicted_price']
+            daily_return = ((new_investment_value - current_investment) / current_investment) * 100
+            total_return = ((new_investment_value - initial_investment) / initial_investment) * 100
+            
+            investment_progression.append({
+                'day': pred['day'],
+                'date': pred['date'],
+                'investment_value': round(new_investment_value, 2),
+                'daily_return': round(daily_return, 2),
+                'total_return': round(total_return, 2),
+                'profit_loss': round(new_investment_value - initial_investment, 2)
+            })
+            
+            current_investment = new_investment_value
+        
+        return investment_progression
             
     def get_trading_recommendation(self):
         """Get trading recommendation based on prediction"""

@@ -251,14 +251,83 @@ def main():
                 st.subheader("📅 5-Day Price Forecast")
                 st.dataframe(pred_df, use_container_width=True)
                 
-                # Download prediction data
-                pred_csv = pred_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Download Predictions as CSV",
-                    data=pred_csv,
-                    file_name=f"{symbol}_predictions_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv"
+                # Investment calculation section
+                st.subheader("💰 Investment Calculator")
+                
+                # Investment amount input
+                investment_amount = st.number_input(
+                    "Investment Amount ($)",
+                    min_value=1.0,
+                    max_value=100000.0,
+                    value=10.0,
+                    step=1.0,
+                    help="Enter the amount you want to invest"
                 )
+                
+                # Calculate investment returns
+                investment_returns = prediction_engine.calculate_investment_returns(
+                    prediction_result, 
+                    investment_amount
+                )
+                
+                if investment_returns:
+                    # Create investment dataframe
+                    investment_df = pd.DataFrame(investment_returns)
+                    
+                    # Display investment progression
+                    st.subheader(f"💸 ${investment_amount} Investment Projection")
+                    st.dataframe(investment_df, use_container_width=True)
+                    
+                    # Show final value prominently
+                    final_value = investment_returns[-1]['investment_value']
+                    total_return = investment_returns[-1]['total_return']
+                    profit_loss = investment_returns[-1]['profit_loss']
+                    
+                    col_inv1, col_inv2, col_inv3 = st.columns(3)
+                    
+                    with col_inv1:
+                        st.metric(
+                            label="Final Value (Day 5)",
+                            value=f"${final_value}",
+                            delta=f"${profit_loss}"
+                        )
+                    
+                    with col_inv2:
+                        st.metric(
+                            label="Total Return",
+                            value=f"{total_return:.2f}%"
+                        )
+                    
+                    with col_inv3:
+                        profit_loss_color = "🟢" if profit_loss > 0 else "🔴" if profit_loss < 0 else "🟡"
+                        st.metric(
+                            label="Profit/Loss",
+                            value=f"{profit_loss_color} ${profit_loss}"
+                        )
+                
+                # Download buttons
+                col_download1, col_download2 = st.columns(2)
+                
+                with col_download1:
+                    pred_csv = pred_df.to_csv(index=False)
+                    st.download_button(
+                        label="📥 Download Predictions",
+                        data=pred_csv,
+                        file_name=f"{symbol}_predictions_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                
+                with col_download2:
+                    if investment_returns:
+                        investment_csv = investment_df.to_csv(index=False)
+                        st.download_button(
+                            label="📥 Download Investment Plan",
+                            data=investment_csv,
+                            file_name=f"{symbol}_investment_plan_{datetime.now().strftime('%Y%m%d')}.csv",
+                            mime="text/csv",
+                            use_container_width=True
+                        )
         
         with col2:
             if prediction_result:
