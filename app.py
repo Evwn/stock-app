@@ -12,6 +12,7 @@ import io
 from utils.data_fetcher import StockDataFetcher
 from utils.chart_generator import ChartGenerator
 from utils.financial_metrics import FinancialMetrics
+from utils.prediction_engine import StockPredictionEngine
 
 # Page configuration
 st.set_page_config(
@@ -228,6 +229,106 @@ def main():
         # Create technical indicators charts
         tech_fig = chart_generator.create_technical_indicators_chart(data, symbol)
         st.plotly_chart(tech_fig, use_container_width=True)
+        
+        # Prediction section
+        st.header("🔮 AI-Powered Price Prediction")
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            # Generate prediction
+            prediction_engine = StockPredictionEngine(data)
+            prediction_result = prediction_engine.generate_prediction(days_ahead=5)
+            
+            if prediction_result:
+                # Create prediction chart
+                pred_fig = chart_generator.create_prediction_chart(data, symbol, prediction_result)
+                if pred_fig:
+                    st.plotly_chart(pred_fig, use_container_width=True)
+                
+                # Display prediction table
+                pred_df = pd.DataFrame(prediction_result['predictions'])
+                st.subheader("📅 5-Day Price Forecast")
+                st.dataframe(pred_df, use_container_width=True)
+                
+                # Download prediction data
+                pred_csv = pred_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Predictions as CSV",
+                    data=pred_csv,
+                    file_name=f"{symbol}_predictions_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv"
+                )
+        
+        with col2:
+            if prediction_result:
+                # Prediction summary
+                st.subheader("🎯 Prediction Summary")
+                
+                # Overall direction and confidence
+                direction_color = "🟢" if prediction_result['direction'] == 'BULLISH' else "🔴" if prediction_result['direction'] == 'BEARISH' else "🟡"
+                st.metric(
+                    label="Direction",
+                    value=f"{direction_color} {prediction_result['direction']}"
+                )
+                
+                st.metric(
+                    label="Confidence Level",
+                    value=f"{prediction_result['confidence']}%"
+                )
+                
+                st.metric(
+                    label="Signal Strength",
+                    value=prediction_result['signal_strength']
+                )
+                
+                st.metric(
+                    label="Risk Level",
+                    value=prediction_result['risk_level']
+                )
+                
+                # Trading recommendation
+                recommendation = prediction_engine.get_trading_recommendation()
+                if recommendation:
+                    st.subheader("💡 Trading Recommendation")
+                    rec_color = "🟢" if "BUY" in recommendation['recommendation'] else "🔴" if "SELL" in recommendation['recommendation'] else "🟡"
+                    st.metric(
+                        label="Recommendation",
+                        value=f"{rec_color} {recommendation['recommendation']}"
+                    )
+                    
+                    with st.expander("💭 Analysis Details"):
+                        st.write(recommendation['reason'])
+                
+                # Support and Resistance
+                if 'support_resistance' in prediction_result:
+                    sr = prediction_result['support_resistance']
+                    st.subheader("📊 Key Levels")
+                    
+                    col_sr1, col_sr2 = st.columns(2)
+                    with col_sr1:
+                        if 'resistance' in sr:
+                            st.metric("Resistance", f"${sr['resistance']}")
+                        if 'resistance_1' in sr:
+                            st.metric("R1", f"${sr['resistance_1']}")
+                    
+                    with col_sr2:
+                        if 'support' in sr:
+                            st.metric("Support", f"${sr['support']}")
+                        if 'support_1' in sr:
+                            st.metric("S1", f"${sr['support_1']}")
+                
+                # Signal breakdown
+                with st.expander("🔍 Signal Analysis"):
+                    st.subheader("Individual Signals")
+                    signals = prediction_result['signals']
+                    
+                    for signal_name, signal_value in signals.items():
+                        signal_display = signal_name.replace('_', ' ').title()
+                        signal_emoji = "🟢" if signal_value > 0.3 else "🔴" if signal_value < -0.3 else "🟡"
+                        st.write(f"{signal_emoji} **{signal_display}**: {signal_value:.3f}")
+            else:
+                st.warning("⚠️ Not enough data for prediction. Need at least 50 data points.")
         
     else:
         # Welcome message when no data is loaded

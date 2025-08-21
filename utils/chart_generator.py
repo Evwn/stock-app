@@ -108,7 +108,9 @@ class ChartGenerator:
             xaxis_rangeslider_visible=False,
             height=600 if show_volume else 500,
             showlegend=True,
-            **self.dark_theme
+            plot_bgcolor=self.dark_theme['plot_bgcolor'],
+            paper_bgcolor=self.dark_theme['paper_bgcolor'],
+            font_color=self.dark_theme['font_color']
         )
         
         # Update x-axis
@@ -191,7 +193,9 @@ class ChartGenerator:
             title=f'{symbol} Stock Analysis',
             height=600 if show_volume else 500,
             showlegend=True,
-            **self.dark_theme
+            plot_bgcolor=self.dark_theme['plot_bgcolor'],
+            paper_bgcolor=self.dark_theme['paper_bgcolor'],
+            font_color=self.dark_theme['font_color']
         )
         
         fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
@@ -274,7 +278,9 @@ class ChartGenerator:
             title=f'{symbol} Stock Analysis',
             height=600 if show_volume else 500,
             showlegend=True,
-            **self.dark_theme
+            plot_bgcolor=self.dark_theme['plot_bgcolor'],
+            paper_bgcolor=self.dark_theme['paper_bgcolor'],
+            font_color=self.dark_theme['font_color']
         )
         
         fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
@@ -414,7 +420,9 @@ class ChartGenerator:
             title=f'{symbol} Technical Analysis',
             height=800,
             showlegend=True,
-            **self.dark_theme
+            plot_bgcolor=self.dark_theme['plot_bgcolor'],
+            paper_bgcolor=self.dark_theme['paper_bgcolor'],
+            font_color=self.dark_theme['font_color']
         )
         
         fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
@@ -446,3 +454,123 @@ class ChartGenerator:
         upper_band = rolling_mean + (rolling_std * std_dev)
         lower_band = rolling_mean - (rolling_std * std_dev)
         return upper_band, lower_band, rolling_mean
+    
+    def create_prediction_chart(self, data, symbol, prediction_result):
+        """
+        Create a chart showing historical data with future predictions
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            # Create figure
+            fig = go.Figure()
+            
+            # Add historical price data
+            fig.add_trace(
+                go.Scatter(
+                    x=data.index,
+                    y=data['Close'],
+                    mode='lines',
+                    name='Historical Price',
+                    line=dict(color='#00CC96', width=2)
+                )
+            )
+            
+            # Add prediction data
+            if 'predictions' in prediction_result:
+                pred_dates = []
+                pred_prices = []
+                
+                last_date = data.index[-1]
+                for pred in prediction_result['predictions']:
+                    pred_date = last_date + timedelta(days=pred['day'])
+                    pred_dates.append(pred_date)
+                    pred_prices.append(pred['predicted_price'])
+                
+                # Connect last historical point to first prediction
+                connect_dates = [data.index[-1]] + pred_dates
+                connect_prices = [data['Close'].iloc[-1]] + pred_prices
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=connect_dates,
+                        y=connect_prices,
+                        mode='lines+markers',
+                        name='Predicted Price',
+                        line=dict(color='#FF6B6B', width=2, dash='dash'),
+                        marker=dict(size=6)
+                    )
+                )
+                
+                # Add prediction confidence bands
+                current_price = prediction_result['current_price']
+                volatility = 0.02  # Default volatility
+                
+                upper_band = [price * (1 + volatility) for price in pred_prices]
+                lower_band = [price * (1 - volatility) for price in pred_prices]
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=pred_dates,
+                        y=upper_band,
+                        mode='lines',
+                        name='Upper Confidence',
+                        line=dict(color='rgba(255, 107, 107, 0.3)', width=1),
+                        showlegend=False
+                    )
+                )
+                
+                fig.add_trace(
+                    go.Scatter(
+                        x=pred_dates,
+                        y=lower_band,
+                        mode='lines',
+                        name='Lower Confidence',
+                        line=dict(color='rgba(255, 107, 107, 0.3)', width=1),
+                        fill='tonexty',
+                        fillcolor='rgba(255, 107, 107, 0.1)',
+                        showlegend=False
+                    )
+                )
+            
+            # Add support and resistance levels
+            if 'support_resistance' in prediction_result:
+                sr = prediction_result['support_resistance']
+                
+                if 'resistance' in sr:
+                    fig.add_hline(
+                        y=sr['resistance'],
+                        line_dash="dash",
+                        line_color="red",
+                        opacity=0.7,
+                        annotation_text="Resistance"
+                    )
+                
+                if 'support' in sr:
+                    fig.add_hline(
+                        y=sr['support'],
+                        line_dash="dash",
+                        line_color="green",
+                        opacity=0.7,
+                        annotation_text="Support"
+                    )
+            
+            # Update layout
+            fig.update_layout(
+                title=f'{symbol} - Price Prediction Analysis',
+                xaxis_title='Date',
+                yaxis_title='Price ($)',
+                height=500,
+                showlegend=True,
+                plot_bgcolor=self.dark_theme['plot_bgcolor'],
+                paper_bgcolor=self.dark_theme['paper_bgcolor'],
+                font_color=self.dark_theme['font_color']
+            )
+            
+            fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
+            fig.update_yaxes(showgrid=True, gridcolor=self.grid_color)
+            
+            return fig
+            
+        except Exception as e:
+            return None
