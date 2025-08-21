@@ -1,0 +1,87 @@
+1. Timeframe Structure
+
+Yearly: Identify overall trend and key support/resistance zones. Look for breakout potentials.
+
+Monthly: Confirm the yearly trend, check for major retracements or consolidations.
+
+Weekly: Confirm monthly trend, refine support/resistance levels.
+
+Daily: Identify entries based on weekly trends and local daily patterns.
+
+4H/1H: Fine-tune exact entry, stop-loss, and take-profit.
+
+2. Trend Analysis
+
+Draw trendlines on yearly, monthly, and weekly charts.
+
+Confirm trend alignment:
+
+Uptrend: Price higher highs and higher lows across Y/M/W/D charts.
+
+Downtrend: Price lower highs and lower lows across Y/M/W/D charts.
+
+Only take trades in the direction of the major trend.
+
+3. Support & Resistance
+
+Identify S/R levels across all timeframes.
+
+Entry is considered only if:
+
+Price is near support in an uptrend (buy setup).
+
+Price is near resistance in a downtrend (sell setup).
+
+Check for convergence across weekly and daily levels for higher reliability.
+
+4. Fibonacci Analysis
+
+Draw Fibonacci retracements from swing low to swing high (or vice versa for downtrend).
+
+Entry levels:
+
+Buy: Near 38.2%–61.8% retracement in uptrend.
+
+Sell: Near 38.2%–61.8% retracement in downtrend.
+
+Predict potential backlashes or targets with Fibonacci extensions (127%, 161.8%).
+
+5. Entry & Confirmation
+
+Entry is only valid if multiple factors align:
+
+Trend direction (Y/M/W/D)
+
+Price at strong support/resistance
+
+Fibonacci level in alignment
+
+Candlestick pattern confirming reversal/continuation (e.g., pin bar, engulfing)
+
+If not all conditions met → No trade, wait.
+
+6. Stop-Loss & Trailing
+
+Place stop-loss below/above last swing low/high.
+
+Use trailing stop when trade moves in favor to secure profits:
+
+Move stop to break-even after 50% of expected move.
+
+Trail stops along Fibonacci levels or moving averages.
+
+7. Prediction Guidance
+
+Use trendlines + S/R + Fibonacci to anticipate breakout or retracement.
+
+Price moving up weekly/daily near strong support → higher chance of breakout.
+
+If no clear alignment or signals → advise hold or wait.
+
+8. Repainting Prevention
+
+Only consider confirmed candle closes for entry.
+
+Avoid real-time repainting indicators.
+
+Mark signals only after confirmation on lower timeframe (1H/4H) relative to higher timeframe trend.

@@ -16,13 +16,14 @@ class AdvancedTechnicalAnalyzer:
         self.analysis_result = {}
         
     def fetch_multi_timeframe_data(self):
-        """Fetch data for multiple timeframes"""
+        """Fetch data for multiple timeframes following professional hierarchy"""
         timeframe_configs = {
-            'yearly': {'period': '10y', 'interval': '1mo'},
+            'yearly': {'period': '15y', 'interval': '1mo'},
             'monthly': {'period': '5y', 'interval': '1wk'},
             'weekly': {'period': '2y', 'interval': '1d'},
             'daily': {'period': '1y', 'interval': '1d'},
-            'hourly': {'period': '60d', 'interval': '1h'}
+            '4h': {'period': '90d', 'interval': '1h'},  # Approximate 4H
+            '1h': {'period': '30d', 'interval': '1h'}
         }
         
         try:
@@ -100,51 +101,145 @@ class AdvancedTechnicalAnalyzer:
             'current_price': round(current_price, 2)
         }
     
-    def calculate_fibonacci_levels(self, data, lookback=50):
-        """Calculate Fibonacci retracement levels"""
+    def calculate_fibonacci_levels(self, data, trend_direction, lookback=50):
+        """Calculate Fibonacci retracement levels based on trend direction"""
         recent_data = data.tail(lookback)
         
-        high = recent_data['High'].max()
-        low = recent_data['Low'].min()
+        # Find proper swing points based on trend
+        highs = recent_data['High'].values
+        lows = recent_data['Low'].values
+        
+        high_peaks, _ = find_peaks(highs, distance=5)
+        low_peaks, _ = find_peaks(-lows, distance=5)
+        
+        if len(high_peaks) == 0 or len(low_peaks) == 0:
+            # Fallback to simple high/low
+            high = recent_data['High'].max()
+            low = recent_data['Low'].min()
+        else:
+            # Use recent swing points
+            high = highs[high_peaks[-1]]
+            low = lows[low_peaks[-1]]
+            
+            # For uptrend, use swing low to swing high
+            # For downtrend, use swing high to swing low
+            if trend_direction in ['strong_uptrend', 'weak_uptrend', 'bullish']:
+                # Find the low before the high
+                low_candidates = [lows[i] for i in low_peaks if len(high_peaks) > 0 and i < high_peaks[-1]]
+                if low_candidates:
+                    low = min(low_candidates)
+            elif trend_direction in ['strong_downtrend', 'weak_downtrend', 'bearish']:
+                # Find the high before the low  
+                high_candidates = [highs[i] for i in high_peaks if len(low_peaks) > 0 and i < low_peaks[-1]]
+                if high_candidates:
+                    high = max(high_candidates)
+        
         diff = high - low
+        current_price = data['Close'].iloc[-1]
         
         # Fibonacci ratios
-        fib_ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
+        key_fib_ratios = [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]
         
-        # Calculate retracement levels (from high)
+        # Calculate retracement levels
         retracement_levels = {}
-        for ratio in fib_ratios:
-            level = high - (diff * ratio)
+        for ratio in key_fib_ratios:
+            if trend_direction in ['strong_uptrend', 'weak_uptrend', 'bullish']:
+                # Uptrend: retracements from high
+                level = high - (diff * ratio)
+            else:
+                # Downtrend: retracements from low
+                level = low + (diff * ratio)
             retracement_levels[f"{ratio*100:.1f}%"] = round(level, 2)
         
-        # Calculate extension levels (beyond low)
+        # Calculate extension levels for targets
         extension_levels = {}
         extension_ratios = [1.272, 1.414, 1.618, 2.0, 2.618]
         for ratio in extension_ratios:
-            level = high - (diff * ratio)
+            if trend_direction in ['strong_uptrend', 'weak_uptrend', 'bullish']:
+                # Uptrend: extensions above high
+                level = high + (diff * (ratio - 1))
+            else:
+                # Downtrend: extensions below low
+                level = low - (diff * (ratio - 1))
             extension_levels[f"{ratio*100:.1f}%"] = round(level, 2)
         
-        current_price = data['Close'].iloc[-1]
+        # Check if current price is in ideal entry zone (38.2% - 61.8%)
+        entry_zone_min = retracement_levels["38.2%"]
+        entry_zone_max = retracement_levels["61.8%"]
         
-        # Find nearest Fibonacci level
-        all_levels = list(retracement_levels.values()) + list(extension_levels.values())
-        nearest_fib = min(all_levels, key=lambda x: abs(x - current_price))
+        if trend_direction in ['strong_uptrend', 'weak_uptrend', 'bullish']:
+            in_entry_zone = entry_zone_max <= current_price <= entry_zone_min
+        else:
+            in_entry_zone = entry_zone_min <= current_price <= entry_zone_max
         
         return {
             'swing_high': round(high, 2),
             'swing_low': round(low, 2),
+            'trend_direction': trend_direction,
             'retracement_levels': retracement_levels,
             'extension_levels': extension_levels,
-            'nearest_fib_level': nearest_fib,
-            'current_price': round(current_price, 2)
+            'current_price': round(current_price, 2),
+            'in_entry_zone': in_entry_zone,
+            'entry_zone': f"{entry_zone_min} - {entry_zone_max}"
         }
     
+    def analyze_trend_structure(self, data, timeframe):
+        """Analyze trend structure: higher highs/lows vs lower highs/lows"""
+        if len(data) < 20:
+            return {'trend': 'neutral', 'structure': 'undefined'}
+            
+        # Get recent swing points
+        highs = data['High'].values
+        lows = data['Low'].values
+        
+        # Find peaks and valleys
+        high_peaks, _ = find_peaks(highs, distance=5)
+        low_peaks, _ = find_peaks(-lows, distance=5)
+        
+        if len(high_peaks) < 2 or len(low_peaks) < 2:
+            return {'trend': 'neutral', 'structure': 'undefined'}
+        
+        # Analyze last 3-4 swing points
+        recent_highs = highs[high_peaks[-3:]] if len(high_peaks) >= 3 else highs[high_peaks]
+        recent_lows = lows[low_peaks[-3:]] if len(low_peaks) >= 3 else lows[low_peaks]
+        
+        # Check for higher highs and higher lows (uptrend)
+        higher_highs = all(recent_highs[i] > recent_highs[i-1] for i in range(1, len(recent_highs)))
+        higher_lows = all(recent_lows[i] > recent_lows[i-1] for i in range(1, len(recent_lows)))
+        
+        # Check for lower highs and lower lows (downtrend)
+        lower_highs = all(recent_highs[i] < recent_highs[i-1] for i in range(1, len(recent_highs)))
+        lower_lows = all(recent_lows[i] < recent_lows[i-1] for i in range(1, len(recent_lows)))
+        
+        if higher_highs and higher_lows:
+            trend = 'strong_uptrend'
+        elif lower_highs and lower_lows:
+            trend = 'strong_downtrend'
+        elif higher_highs or higher_lows:
+            trend = 'weak_uptrend'
+        elif lower_highs or lower_lows:
+            trend = 'weak_downtrend'
+        else:
+            trend = 'sideways'
+        
+        # Calculate trendlines
+        trendlines = self.detect_trendlines(data, min(len(data), 50))
+        
+        return {
+            'trend': trend,
+            'structure': 'defined',
+            'recent_highs': recent_highs.tolist(),
+            'recent_lows': recent_lows.tolist(),
+            'trendlines': trendlines,
+            'swing_high': float(highs[high_peaks[-1]]) if len(high_peaks) > 0 else None,
+            'swing_low': float(lows[low_peaks[-1]]) if len(low_peaks) > 0 else None
+        }
+
     def detect_trendlines(self, data, lookback=50):
         """Detect trendlines using linear regression on swing points"""
         recent_data = data.tail(lookback)
         highs = recent_data['High'].values
         lows = recent_data['Low'].values
-        closes = recent_data['Close'].values
         
         # Find swing points
         high_peaks, _ = find_peaks(highs, distance=3)
@@ -245,193 +340,293 @@ class AdvancedTechnicalAnalyzer:
         }
     
     def multi_timeframe_confirmation(self):
-        """Confirm signals across multiple timeframes"""
+        """Professional multi-timeframe analysis with trend hierarchy"""
         confirmations = {}
+        trend_alignment = {}
         
+        # Analyze each timeframe's trend structure
         for timeframe, data in self.timeframes.items():
             if len(data) < 20:
                 continue
-                
-            # Calculate trend direction using EMAs
+            
+            # Get trend structure analysis
+            trend_analysis = self.analyze_trend_structure(data, timeframe)
+            
+            # Calculate additional indicators
             ema20 = data['Close'].ewm(span=20).mean()
             ema50 = data['Close'].ewm(span=50).mean() if len(data) >= 50 else ema20
             
             current_price = data['Close'].iloc[-1]
-            trend_direction = "bullish" if current_price > ema20.iloc[-1] and ema20.iloc[-1] > ema50.iloc[-1] else "bearish"
+            
+            # Determine overall trend bias
+            trend_bias = 'neutral'
+            if trend_analysis['trend'] in ['strong_uptrend', 'weak_uptrend']:
+                trend_bias = 'bullish'
+            elif trend_analysis['trend'] in ['strong_downtrend', 'weak_downtrend']:
+                trend_bias = 'bearish'
             
             # Calculate momentum
             roc = ((current_price - data['Close'].iloc[-10]) / data['Close'].iloc[-10]) * 100 if len(data) >= 10 else 0
             
             confirmations[timeframe] = {
-                'trend': trend_direction,
+                'trend': trend_bias,
+                'trend_strength': trend_analysis['trend'],
                 'momentum': round(roc, 2),
                 'price_above_ema20': current_price > ema20.iloc[-1],
-                'ema20_above_ema50': ema20.iloc[-1] > ema50.iloc[-1] if len(data) >= 50 else True
+                'ema20_above_ema50': ema20.iloc[-1] > ema50.iloc[-1] if len(data) >= 50 else True,
+                'swing_high': trend_analysis.get('swing_high'),
+                'swing_low': trend_analysis.get('swing_low'),
+                'structure': trend_analysis['structure'],
+                'trendlines': trend_analysis.get('trendlines', {})
             }
+            
+            trend_alignment[timeframe] = trend_bias
         
-        return confirmations
+        # Check hierarchical alignment (Yearly -> Monthly -> Weekly -> Daily)
+        timeframe_hierarchy = ['yearly', 'monthly', 'weekly', 'daily', '4h', '1h']
+        aligned_timeframes = []
+        
+        if len(trend_alignment) >= 3:  # Need at least 3 timeframes
+            primary_trend = None
+            
+            # Get the highest timeframe trend as primary
+            for tf in timeframe_hierarchy:
+                if tf in trend_alignment and trend_alignment[tf] != 'neutral':
+                    primary_trend = trend_alignment[tf]
+                    break
+            
+            if primary_trend:
+                # Count aligned timeframes
+                for tf in timeframe_hierarchy:
+                    if tf in trend_alignment:
+                        if trend_alignment[tf] == primary_trend:
+                            aligned_timeframes.append(tf)
+        
+        alignment_strength = len(aligned_timeframes) / max(len(trend_alignment), 1)
+        
+        return {
+            'individual_analysis': confirmations,
+            'trend_alignment': trend_alignment,
+            'primary_trend': primary_trend if 'primary_trend' in locals() else 'neutral',
+            'aligned_timeframes': aligned_timeframes,
+            'alignment_strength': round(alignment_strength, 2),
+            'alignment_quality': 'strong' if alignment_strength >= 0.75 else 'moderate' if alignment_strength >= 0.5 else 'weak'
+        }
     
-    def generate_trading_setup(self):
-        """Generate comprehensive trading setup analysis"""
+    def generate_professional_trading_setup(self):
+        """Generate professional trading setup following exact methodology"""
         if not self.timeframes:
             return None
             
-        # Use daily data as primary timeframe
-        primary_data = self.timeframes.get('daily', list(self.timeframes.values())[0])
+        # Primary timeframe analysis (daily for entry signals)
+        daily_data = self.timeframes.get('daily', list(self.timeframes.values())[0])
         
-        # Analyze all components
-        sr_analysis = self.detect_support_resistance(primary_data)
-        fib_analysis = self.calculate_fibonacci_levels(primary_data)
-        trendlines = self.detect_trendlines(primary_data)
-        momentum = self.analyze_momentum_divergence(primary_data)
-        volume_analysis = self.calculate_volume_analysis(primary_data)
-        mtf_confirmation = self.multi_timeframe_confirmation()
+        # Multi-timeframe confirmation analysis
+        mtf_analysis = self.multi_timeframe_confirmation()
+        
+        if not mtf_analysis or mtf_analysis['alignment_quality'] == 'weak':
+            return self.create_no_setup_result("Insufficient multi-timeframe alignment")
+        
+        primary_trend = mtf_analysis['primary_trend']
+        alignment_strength = mtf_analysis['alignment_strength']
+        
+        # Only proceed if we have clear trend direction
+        if primary_trend == 'neutral':
+            return self.create_no_setup_result("No clear trend direction across timeframes")
+        
+        # Analyze key components
+        sr_analysis = self.detect_support_resistance(daily_data)
+        
+        # Get primary trend structure for Fibonacci calculation
+        trend_structure = 'bullish' if primary_trend == 'bullish' else 'bearish'
+        fib_analysis = self.calculate_fibonacci_levels(daily_data, trend_structure)
+        
+        momentum = self.analyze_momentum_divergence(daily_data)
+        volume_analysis = self.calculate_volume_analysis(daily_data)
         
         current_price = sr_analysis['current_price']
         
-        # Scoring system for setup quality
+        # STRICT ENTRY CRITERIA - ALL MUST ALIGN
         setup_score = 0
-        setup_signals = []
+        confluence_factors = []
+        entry_valid = True
+        reason_for_no_setup = []
         
-        # Multi-timeframe alignment
-        bullish_timeframes = sum(1 for tf, data in mtf_confirmation.items() if data['trend'] == 'bullish')
-        total_timeframes = len(mtf_confirmation)
+        # 1. Multi-timeframe trend alignment (MANDATORY)
+        if alignment_strength >= 0.75:  # 75% of timeframes aligned
+            setup_score += 30
+            confluence_factors.append(f"Strong multi-timeframe {primary_trend} alignment ({alignment_strength*100:.0f}%)")
+        elif alignment_strength >= 0.6:
+            setup_score += 20
+            confluence_factors.append(f"Moderate multi-timeframe {primary_trend} alignment ({alignment_strength*100:.0f}%)")
+        else:
+            entry_valid = False
+            reason_for_no_setup.append("Insufficient timeframe alignment")
         
-        if bullish_timeframes >= total_timeframes * 0.7:  # 70% of timeframes bullish
-            setup_score += 25
-            setup_signals.append("Multi-timeframe bullish alignment")
-        elif bullish_timeframes <= total_timeframes * 0.3:  # 70% of timeframes bearish
-            setup_score += 25
-            setup_signals.append("Multi-timeframe bearish alignment")
+        # 2. Support/Resistance confluence (MANDATORY)
+        sr_confluence = False
         
-        # Support/Resistance confluence
-        if sr_analysis['nearest_support']:
-            support_distance = (current_price - sr_analysis['nearest_support']) / current_price
-            if 0.01 <= support_distance <= 0.05:  # 1-5% above support
-                setup_score += 20
-                setup_signals.append(f"Price near strong support at ${sr_analysis['nearest_support']}")
+        if primary_trend == 'bullish':
+            # Buy setup: price near support
+            if sr_analysis['nearest_support']:
+                support_distance = abs(current_price - sr_analysis['nearest_support']) / current_price
+                if support_distance <= 0.03:  # Within 3% of support
+                    setup_score += 25
+                    confluence_factors.append(f"Price near key support at ${sr_analysis['nearest_support']}")
+                    sr_confluence = True
+        else:  # bearish
+            # Sell setup: price near resistance
+            if sr_analysis['nearest_resistance']:
+                resistance_distance = abs(sr_analysis['nearest_resistance'] - current_price) / current_price
+                if resistance_distance <= 0.03:  # Within 3% of resistance
+                    setup_score += 25
+                    confluence_factors.append(f"Price near key resistance at ${sr_analysis['nearest_resistance']}")
+                    sr_confluence = True
         
-        if sr_analysis['nearest_resistance']:
-            resistance_distance = (sr_analysis['nearest_resistance'] - current_price) / current_price
-            if 0.01 <= resistance_distance <= 0.05:  # 1-5% below resistance
-                setup_score += 20
-                setup_signals.append(f"Price approaching resistance at ${sr_analysis['nearest_resistance']}")
+        if not sr_confluence:
+            entry_valid = False
+            reason_for_no_setup.append("Price not near key support/resistance level")
         
-        # Fibonacci confluence
-        fib_distance = min([abs(current_price - level) / current_price 
-                           for level in fib_analysis['retracement_levels'].values()])
-        if fib_distance <= 0.02:  # Within 2% of Fibonacci level
-            setup_score += 15
-            setup_signals.append("Price at key Fibonacci level")
+        # 3. Fibonacci alignment (MANDATORY)
+        fib_confluence = fib_analysis['in_entry_zone']
         
-        # Trendline confirmation
-        if 'support_trendline' in trendlines and trendlines['support_trendline']['strength'] > 0.7:
-            setup_score += 15
-            setup_signals.append("Strong ascending support trendline")
+        if fib_confluence:
+            setup_score += 20
+            confluence_factors.append(f"Price in Fibonacci entry zone (38.2%-61.8%): {fib_analysis['entry_zone']}")
+        else:
+            entry_valid = False
+            reason_for_no_setup.append("Price not in Fibonacci entry zone (38.2%-61.8% retracement)")
         
-        if 'resistance_trendline' in trendlines and trendlines['resistance_trendline']['strength'] > 0.7:
-            setup_score += 15
-            setup_signals.append("Strong resistance trendline")
-        
-        # Volume confirmation
+        # 4. Volume confirmation
         if volume_analysis['volume_confirmation']:
-            setup_score += 10
-            setup_signals.append("Volume confirmation present")
+            setup_score += 15
+            confluence_factors.append("Volume confirmation present (20%+ above average)")
+        else:
+            setup_score -= 10
+            confluence_factors.append("⚠️ Weak volume confirmation")
         
-        # Momentum divergence
-        if momentum['bearish_divergence']:
-            setup_score -= 15
-            setup_signals.append("Bearish momentum divergence detected")
+        # 5. Check for momentum divergence (can invalidate setup)
+        if momentum['bearish_divergence'] and primary_trend == 'bullish':
+            entry_valid = False
+            reason_for_no_setup.append("Bearish momentum divergence detected")
+        elif momentum['bullish_divergence'] and primary_trend == 'bearish':
+            entry_valid = False  
+            reason_for_no_setup.append("Bullish momentum divergence detected")
         
-        # Generate recommendation
-        recommendation = "NO SETUP"
-        confidence = 0
-        entry_price = None
+        # 6. Trendline support
+        daily_trend_analysis = self.analyze_trend_structure(daily_data, 'daily')
+        if daily_trend_analysis['trendlines']:
+            if primary_trend == 'bullish' and 'support_trendline' in daily_trend_analysis['trendlines']:
+                trendline = daily_trend_analysis['trendlines']['support_trendline']
+                if trendline['strength'] > 0.7:
+                    setup_score += 10
+                    confluence_factors.append("Strong ascending support trendline")
+            elif primary_trend == 'bearish' and 'resistance_trendline' in daily_trend_analysis['trendlines']:
+                trendline = daily_trend_analysis['trendlines']['resistance_trendline']
+                if trendline['strength'] > 0.7:
+                    setup_score += 10
+                    confluence_factors.append("Strong descending resistance trendline")
+        
+        # Generate final recommendation
+        if not entry_valid or setup_score < 70:
+            return self.create_no_setup_result("; ".join(reason_for_no_setup) if reason_for_no_setup else "Setup score below threshold")
+        
+        # Valid setup found - calculate entry parameters
+        recommendation = f"STRONG {'BUY' if primary_trend == 'bullish' else 'SELL'} SETUP"
+        confidence = min(95, setup_score)
+        
+        # Calculate precise entry, stop loss, and targets
+        entry_price = current_price
         stop_loss = None
         targets = []
         
-        if setup_score >= 70:
-            # Determine direction based on confluence
-            if bullish_timeframes > total_timeframes / 2:
-                recommendation = "STRONG BUY SETUP"
-                confidence = min(95, setup_score)
-                entry_price = current_price
-                
-                # Calculate stop loss (below nearest support or trendline)
-                if sr_analysis['nearest_support']:
-                    stop_loss = sr_analysis['nearest_support'] * 0.98  # 2% below support
-                elif 'support_trendline' in trendlines:
-                    stop_loss = trendlines['support_trendline']['current_level'] * 0.98
-                else:
-                    stop_loss = current_price * 0.95  # 5% stop loss
-                
-                # Calculate targets
-                if sr_analysis['nearest_resistance']:
-                    targets.append(sr_analysis['nearest_resistance'] * 0.98)
-                
-                # Add Fibonacci targets
-                fib_targets = [level for level in fib_analysis['retracement_levels'].values() 
-                              if level > current_price]
-                targets.extend(sorted(fib_targets)[:2])
-                
+        if primary_trend == 'bullish':
+            # Buy setup
+            if sr_analysis['nearest_support']:
+                # Stop loss 1-2% below support
+                stop_loss = sr_analysis['nearest_support'] * 0.98
             else:
-                recommendation = "STRONG SELL SETUP"
-                confidence = min(95, setup_score)
-                entry_price = current_price
-                
-                # Calculate stop loss (above nearest resistance)
-                if sr_analysis['nearest_resistance']:
-                    stop_loss = sr_analysis['nearest_resistance'] * 1.02
-                elif 'resistance_trendline' in trendlines:
-                    stop_loss = trendlines['resistance_trendline']['current_level'] * 1.02
-                else:
-                    stop_loss = current_price * 1.05
-                
-                # Calculate targets (downside)
-                if sr_analysis['nearest_support']:
-                    targets.append(sr_analysis['nearest_support'] * 1.02)
+                # Fallback: 3% below entry
+                stop_loss = entry_price * 0.97
+            
+            # Targets: Fibonacci extensions and resistance levels
+            if sr_analysis['nearest_resistance']:
+                targets.append(sr_analysis['nearest_resistance'] * 0.99)  # Target 1: Near resistance
+            
+            # Add Fibonacci extension targets
+            for ratio, level in fib_analysis['extension_levels'].items():
+                if level > current_price and len(targets) < 3:
+                    targets.append(level)
                     
-                # Add Fibonacci targets (downside)
-                fib_targets = [level for level in fib_analysis['retracement_levels'].values() 
-                              if level < current_price]
-                targets.extend(sorted(fib_targets, reverse=True)[:2])
-                
-        elif setup_score >= 50:
-            recommendation = "HOLD/MONITOR"
-            confidence = setup_score
+        else:  # bearish
+            # Sell setup
+            if sr_analysis['nearest_resistance']:
+                # Stop loss 1-2% above resistance
+                stop_loss = sr_analysis['nearest_resistance'] * 1.02
+            else:
+                # Fallback: 3% above entry
+                stop_loss = entry_price * 1.03
+            
+            # Targets: Fibonacci extensions and support levels
+            if sr_analysis['nearest_support']:
+                targets.append(sr_analysis['nearest_support'] * 1.01)  # Target 1: Near support
+            
+            # Add Fibonacci extension targets
+            for ratio, level in fib_analysis['extension_levels'].items():
+                if level < current_price and level > 0 and len(targets) < 3:
+                    targets.append(level)
         
-        # Stop loss management rules
-        stop_loss_rules = []
-        if recommendation not in ["NO SETUP", "HOLD/MONITOR"]:
-            stop_loss_rules = [
-                "Move stop loss to breakeven after 1:1 risk/reward",
-                "Trail stop loss using 20-period EMA on daily chart",
-                "Tighten stop loss if volume decreases significantly",
-                "Exit if price closes below major support/resistance"
-            ]
+        # Professional stop loss management rules
+        stop_loss_rules = [
+            "Move stop loss to breakeven after 50% of expected move",
+            "Trail stops using Fibonacci levels or key moving averages",
+            "Tighten stops if volume decreases significantly on pullbacks",
+            "Exit immediately if price closes below/above key support/resistance on higher timeframe"
+        ]
         
         return {
             'setup_score': setup_score,
             'recommendation': recommendation,
             'confidence': confidence,
-            'signals': setup_signals,
+            'entry_valid': entry_valid,
+            'primary_trend': primary_trend,
+            'confluence_factors': confluence_factors,
             'entry_price': round(entry_price, 2) if entry_price else None,
             'stop_loss': round(stop_loss, 2) if stop_loss else None,
             'targets': [round(t, 2) for t in targets[:3]] if targets else [],
+            'risk_reward_ratio': round((targets[0] - entry_price) / (entry_price - stop_loss), 2) if targets and stop_loss else None,
             'stop_loss_management': stop_loss_rules,
             'support_resistance': sr_analysis,
             'fibonacci': fib_analysis,
-            'trendlines': trendlines,
             'momentum': momentum,
             'volume': volume_analysis,
-            'multi_timeframe': mtf_confirmation,
-            'analysis_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'multi_timeframe': mtf_analysis,
+            'trend_structure': daily_trend_analysis,
+            'analysis_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'methodology_note': "Professional setup following strict confluence requirements"
+        }
+    
+    def create_no_setup_result(self, reason):
+        """Create result for when no valid setup exists"""
+        return {
+            'setup_score': 0,
+            'recommendation': "NO SETUP - WAIT",
+            'confidence': 0,
+            'entry_valid': False,
+            'reason': reason,
+            'confluence_factors': [],
+            'entry_price': None,
+            'stop_loss': None,
+            'targets': [],
+            'stop_loss_management': [],
+            'analysis_timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'methodology_note': "No trade signal due to insufficient confluence factors"
         }
     
     def analyze(self):
-        """Run complete advanced technical analysis"""
+        """Run complete professional technical analysis"""
         if not self.fetch_multi_timeframe_data():
             return None
             
-        self.analysis_result = self.generate_trading_setup()
+        self.analysis_result = self.generate_professional_trading_setup()
         return self.analysis_result
