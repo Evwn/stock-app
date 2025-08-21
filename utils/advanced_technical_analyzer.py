@@ -408,7 +408,7 @@ class AdvancedTechnicalAnalyzer:
         return {
             'individual_analysis': confirmations,
             'trend_alignment': trend_alignment,
-            'primary_trend': primary_trend,
+            'primary_trend': primary_trend if primary_trend else 'neutral',
             'aligned_timeframes': aligned_timeframes,
             'alignment_strength': round(alignment_strength, 2),
             'alignment_quality': 'strong' if alignment_strength >= 0.75 else 'moderate' if alignment_strength >= 0.5 else 'weak'
@@ -453,16 +453,16 @@ class AdvancedTechnicalAnalyzer:
         entry_valid = True
         reason_for_no_setup = []
         
-        # 1. Multi-timeframe trend alignment (MANDATORY)
-        if alignment_strength >= 0.75:  # 75% of timeframes aligned
+        # 1. Multi-timeframe trend alignment (FLEXIBLE - Reduced requirements)
+        if alignment_strength >= 0.6:  # 60% of timeframes aligned
             setup_score += 30
             confluence_factors.append(f"Strong multi-timeframe {primary_trend} alignment ({alignment_strength*100:.0f}%)")
-        elif alignment_strength >= 0.6:
-            setup_score += 20
+        elif alignment_strength >= 0.4:  # 40% minimum (was 60%)
+            setup_score += 15
             confluence_factors.append(f"Moderate multi-timeframe {primary_trend} alignment ({alignment_strength*100:.0f}%)")
         else:
-            entry_valid = False
-            reason_for_no_setup.append("Insufficient timeframe alignment")
+            setup_score -= 10  # Penalize but don't disqualify
+            confluence_factors.append(f"⚠️ Weak multi-timeframe alignment ({alignment_strength*100:.0f}%)")
         
         # 2. Support/Resistance confluence (MANDATORY)
         sr_confluence = False
@@ -485,18 +485,18 @@ class AdvancedTechnicalAnalyzer:
                     sr_confluence = True
         
         if not sr_confluence:
-            entry_valid = False
-            reason_for_no_setup.append("Price not near key support/resistance level")
+            setup_score -= 15  # Penalize but don't disqualify
+            confluence_factors.append("⚠️ Price not near key support/resistance level")
         
-        # 3. Fibonacci alignment (MANDATORY)
+        # 3. Fibonacci alignment (OPTIONAL - More flexible)
         fib_confluence = fib_analysis['in_entry_zone']
         
         if fib_confluence:
             setup_score += 20
             confluence_factors.append(f"Price in Fibonacci entry zone (38.2%-61.8%): {fib_analysis['entry_zone']}")
         else:
-            entry_valid = False
-            reason_for_no_setup.append("Price not in Fibonacci entry zone (38.2%-61.8% retracement)")
+            setup_score -= 5  # Small penalty instead of disqualification
+            confluence_factors.append("⚠️ Price outside ideal Fibonacci entry zone")
         
         # 4. Volume confirmation
         if volume_analysis['volume_confirmation']:
@@ -506,13 +506,13 @@ class AdvancedTechnicalAnalyzer:
             setup_score -= 10
             confluence_factors.append("⚠️ Weak volume confirmation")
         
-        # 5. Check for momentum divergence (can invalidate setup)
+        # 5. Check for momentum divergence (warning only - not disqualifying)
         if momentum['bearish_divergence'] and primary_trend == 'bullish':
-            entry_valid = False
-            reason_for_no_setup.append("Bearish momentum divergence detected")
+            setup_score -= 15
+            confluence_factors.append("⚠️ Bearish momentum divergence detected - exercise caution")
         elif momentum['bullish_divergence'] and primary_trend == 'bearish':
-            entry_valid = False  
-            reason_for_no_setup.append("Bullish momentum divergence detected")
+            setup_score -= 15
+            confluence_factors.append("⚠️ Bullish momentum divergence detected - exercise caution")
         
         # 6. Trendline support
         daily_trend_analysis = self.analyze_trend_structure(daily_data, 'daily')
@@ -529,8 +529,8 @@ class AdvancedTechnicalAnalyzer:
                     setup_score += 10
                     confluence_factors.append("Strong descending resistance trendline")
         
-        # Generate final recommendation
-        if not entry_valid or setup_score < 70:
+        # Generate final recommendation (More practical threshold)
+        if setup_score < 30:  # Lowered from 45 to 30
             return self.create_no_setup_result("; ".join(reason_for_no_setup) if reason_for_no_setup else "Setup score below threshold")
         
         # Valid setup found - calculate entry parameters

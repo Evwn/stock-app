@@ -607,7 +607,7 @@ def main():
             col_setup1, col_setup2, col_setup3 = st.columns(3)
             
             with col_setup1:
-                score_color = "🟢" if setup_analysis['setup_score'] >= 70 else "🟡" if setup_analysis['setup_score'] >= 50 else "🔴"
+                score_color = "🟢" if setup_analysis['setup_score'] >= 60 else "🟡" if setup_analysis['setup_score'] >= 35 else "🔴"
                 st.metric(
                     label="Setup Score",
                     value=f"{score_color} {setup_analysis['setup_score']}/100"

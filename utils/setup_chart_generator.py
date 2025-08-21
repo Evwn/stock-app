@@ -168,7 +168,7 @@ class SetupChartGenerator:
             )
             
             # Add zero line
-            fig.add_hline(y=0, line_dash="dash", line_color="gray", row=2, col=1)
+            fig.add_hline(y=0, line_dash="dash", line_color="gray")
         
         # Update layout
         fig.update_layout(
