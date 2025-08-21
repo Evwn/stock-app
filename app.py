@@ -59,13 +59,84 @@ def main():
     with st.sidebar:
         st.header("🔧 Configuration")
         
-        # Stock symbol input
-        symbol = st.text_input(
-            "Enter Stock Symbol",
-            value="AAPL",
-            placeholder="e.g., AAPL, GOOGL, TSLA",
-            help="Enter a valid stock ticker symbol"
-        ).upper()
+        # Stock symbol selection
+        # Popular stocks (top 10)
+        popular_stocks = [
+            "AAPL - Apple Inc.",
+            "MSFT - Microsoft Corporation",
+            "GOOGL - Alphabet Inc.",
+            "AMZN - Amazon.com Inc.",
+            "TSLA - Tesla Inc.",
+            "META - Meta Platforms Inc.",
+            "NVDA - NVIDIA Corporation",
+            "NFLX - Netflix Inc.",
+            "JPM - JPMorgan Chase & Co.",
+            "JNJ - Johnson & Johnson"
+        ]
+        
+        # Other commonly traded stocks (alphabetical)
+        other_stocks = [
+            "ABBV - AbbVie Inc.",
+            "ABT - Abbott Laboratories",
+            "ADBE - Adobe Inc.",
+            "AMD - Advanced Micro Devices",
+            "BAC - Bank of America Corp",
+            "BABA - Alibaba Group",
+            "BRK.B - Berkshire Hathaway",
+            "CRM - Salesforce Inc.",
+            "CVX - Chevron Corporation",
+            "DIS - The Walt Disney Company",
+            "HD - The Home Depot",
+            "IBM - International Business Machines",
+            "INTC - Intel Corporation",
+            "KO - The Coca-Cola Company",
+            "LLY - Eli Lilly and Company",
+            "MA - Mastercard Incorporated",
+            "MCD - McDonald's Corporation",
+            "NKE - NIKE Inc.",
+            "ORCL - Oracle Corporation",
+            "PFE - Pfizer Inc.",
+            "PG - Procter & Gamble",
+            "PYPL - PayPal Holdings",
+            "SHOP - Shopify Inc.",
+            "SNAP - Snap Inc.",
+            "SPOT - Spotify Technology",
+            "SQ - Block Inc.",
+            "T - AT&T Inc.",
+            "UNH - UnitedHealth Group",
+            "V - Visa Inc.",
+            "VZ - Verizon Communications",
+            "WMT - Walmart Inc.",
+            "XOM - Exxon Mobil Corporation"
+        ]
+        
+        # Combine lists with popular stocks at top
+        all_stocks = ["Select a stock..."] + popular_stocks + ["--- Other Stocks ---"] + other_stocks + ["--- Custom Entry ---"]
+        
+        # Stock selection dropdown
+        selected_stock = st.selectbox(
+            "Select Stock Symbol",
+            options=all_stocks,
+            index=1,  # Default to first popular stock (AAPL)
+            help="Choose from popular stocks or scroll down for more options"
+        )
+        
+        # Handle selection
+        if selected_stock == "Select a stock..." or selected_stock == "--- Other Stocks ---":
+            symbol = "AAPL"  # Default fallback
+        elif selected_stock == "--- Custom Entry ---":
+            # Allow custom text input
+            symbol = st.text_input(
+                "Enter Custom Stock Symbol",
+                value="",
+                placeholder="e.g., AAPL, GOOGL, TSLA",
+                help="Enter any valid stock ticker symbol"
+            ).upper()
+            if not symbol:
+                symbol = "AAPL"  # Fallback if empty
+        else:
+            # Extract symbol from selection (everything before the first space and dash)
+            symbol = selected_stock.split(" - ")[0].strip()
         
         # Time period selection
         time_period = st.selectbox(
@@ -319,7 +390,7 @@ def main():
                     )
                 
                 with col_download2:
-                    if investment_returns:
+                    if investment_returns and 'investment_df' in locals():
                         investment_csv = investment_df.to_csv(index=False)
                         st.download_button(
                             label="📥 Download Investment Plan",
@@ -403,36 +474,12 @@ def main():
         # Welcome message when no data is loaded
         st.info("👋 Welcome! Enter a stock symbol in the sidebar and click 'Fetch Data' to begin analysis.")
         
-        # Sample symbols for quick access
-        st.subheader("🚀 Popular Stocks")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        popular_stocks = [
-            ("Apple", "AAPL"),
-            ("Microsoft", "MSFT"),
-            ("Google", "GOOGL"),
-            ("Tesla", "TSLA"),
-            ("Amazon", "AMZN"),
-            ("Meta", "META"),
-            ("NVIDIA", "NVDA"),
-            ("Netflix", "NFLX")
-        ]
-        
-        for i, (name, ticker) in enumerate(popular_stocks):
-            col = [col1, col2, col3, col4][i % 4]
-            with col:
-                if st.button(f"{name} ({ticker})", key=ticker, use_container_width=True):
-                    with st.spinner(f"Fetching data for {ticker}..."):
-                        fetcher = StockDataFetcher()
-                        data = fetcher.get_stock_data(ticker, "1y")
-                        
-                        if data is not None:
-                            st.session_state.stock_data = data
-                            st.session_state.current_symbol = ticker
-                            st.rerun()
+        # Quick note about available features
+        st.subheader("✨ Available Features")
+        st.write("📊 Use the dropdown above to select from popular stocks or enter any custom symbol!")
         
         # App features
-        st.subheader("✨ Features")
+        st.subheader("🔥 Key Features")
         features = [
             "📊 Interactive candlestick, line, and area charts",
             "📈 Real-time data from Yahoo Finance",

@@ -360,7 +360,7 @@ class StockPredictionEngine:
         except:
             return {}
     
-    def calculate_investment_returns(self, prediction_result, initial_investment=10):
+    def calculate_investment_returns(self, prediction_result, initial_investment=10.0):
         """
         Calculate investment returns based on predictions
         
