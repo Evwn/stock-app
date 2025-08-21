@@ -1,0 +1,101 @@
+📡 1. Real-Time Data & Execution:
+
+Use Binance WebSocket Kline (candlestick) data for selected pairs at 1m interval.
+
+Parse and store open, high, low, close for each candle in real-time.
+
+Plot real-time charts for:
+
+Price movements (per asset)
+
+Balance over time
+
+Trade markers (BUY/SELL)
+
+💹 2. Pairs Traded:
+PAIRS = ['EURUSDT', 'ETHUSDT', 'BTCUSDT', 'ADAUSDT', 'SOLUSDT']
+
+
+Each pair has its own strategy, thread, and trade log.
+
+📈 3. Strategy Logic (One per Pair):
+
+BTCUSDT → Trend-following:
+
+Buy if price > EMA(14)
+
+Sell if price < EMA(14)
+
+ETHUSDT → RSI reversal:
+
+Buy if RSI < 30
+
+Sell if RSI > 70
+
+EURUSDT → RSI+EMA momentum:
+
+Buy if price > EMA(14) and RSI > 50
+
+Sell if price < EMA(14) and RSI < 50
+
+ADAUSDT → Price confirmation:
+
+Buy if current_close > previous_close and price > EMA(14)
+
+Sell if current_close < previous_close and price < EMA(14)
+
+SOLUSDT → Breakout:
+
+Buy if price breaks above the highest high of the last 10 candles
+
+Sell if price breaks below the lowest low of the last 10 candles
+
+🔒 4. Risk Management:
+
+Risk per trade: 1% of current virtual balance
+
+Reward-to-Risk Ratio (RRR): 1.5
+
+Stop-Loss: 1% below/above entry price
+
+Take-Profit: 1.5% above/below entry price
+
+Trailing Stop (optional for future update)
+
+📊 5. Trade Execution Logic (Virtual):
+
+No real orders placed — only virtual tracking.
+
+Once a strategy triggers a trade (BUY or SELL):
+
+Log entry price, pair, direction, TP, SL
+
+Monitor subsequent candles in real-time (thread)
+
+If price hits TP → count as Win
+
+If price hits SL → count as Loss
+
+Update balance, PnL, win/loss counter
+
+📈 6. GUI/Plot Features:
+
+Live-updating Matplotlib plots
+
+Balance history (with PnL markers)
+
+Price chart per pair
+
+Update every few seconds
+
+Annotate BUY/SELL actions on charts
+
+🔁 7. Other:
+
+All trades and plots must run in independent threads to ensure live responsiveness.
+
+Protect against duplicate trades per pair — only one open trade per pair at a time.
+
+📌 Summary:
+
+This bot is for virtual-only, high-integrity trading strategy testing using live Binance data, real-world logic, and real trade structure. Emphasis is on safe trading with low risk, smart entry logic, and clear win/loss calculation — accurately reflecting real market behavior.

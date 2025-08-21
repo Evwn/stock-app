@@ -7,8 +7,10 @@ dependencies = [
     "numpy>=2.3.2",
     "pandas>=2.3.2",
     "plotly>=6.3.0",
+    "python-binance>=1.0.29",
     "scikit-learn>=1.7.1",
     "scipy>=1.16.1",
     "streamlit>=1.48.1",
+    "websocket-client>=1.8.0",
     "yfinance>=0.2.65",
 ]
