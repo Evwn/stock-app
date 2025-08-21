@@ -10,13 +10,14 @@ class StockDataFetcher:
         self.cache_duration = 300  # 5 minutes cache
     
     @st.cache_data(ttl=300)
-    def get_stock_data(_self, symbol, period="1y"):
+    def get_stock_data(_self, symbol, period="1y", interval="1d"):
         """
         Fetch stock data from Yahoo Finance
         
         Args:
             symbol (str): Stock ticker symbol
             period (str): Time period for data ('1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max')
+            interval (str): Data interval ('1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo')
         
         Returns:
             pandas.DataFrame: Stock data with OHLCV columns
@@ -26,7 +27,7 @@ class StockDataFetcher:
             ticker = yf.Ticker(symbol)
             
             # Fetch historical data
-            data = ticker.history(period=period)
+            data = ticker.history(period=period, interval=interval)
             
             if data.empty:
                 st.error(f"No data found for symbol: {symbol}")

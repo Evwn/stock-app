@@ -13,6 +13,7 @@ from utils.data_fetcher import StockDataFetcher
 from utils.chart_generator import ChartGenerator
 from utils.financial_metrics import FinancialMetrics
 from utils.prediction_engine import StockPredictionEngine
+from utils.enhanced_prediction_engine import EnhancedPredictionEngine
 
 # Page configuration
 st.set_page_config(
@@ -138,13 +139,41 @@ def main():
             # Extract symbol from selection (everything before the first space and dash)
             symbol = selected_stock.split(" - ")[0].strip()
         
-        # Time period selection
-        time_period = st.selectbox(
-            "Select Time Period",
-            ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"],
-            index=5,
-            help="Choose the time range for analysis"
-        )
+        # Time period and interval selection
+        col_period, col_interval = st.columns(2)
+        
+        with col_period:
+            time_period = st.selectbox(
+                "Time Range",
+                ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"],
+                index=6,  # Default to 2y for better analysis
+                help="Choose the time range for analysis"
+            )
+        
+        with col_interval:
+            # Interval selection based on time period
+            if time_period in ["1d"]:
+                intervals = ["1m", "2m", "5m", "15m", "30m", "60m", "90m"]
+                default_interval = "5m"
+            elif time_period in ["5d", "1mo"]:
+                intervals = ["5m", "15m", "30m", "60m", "1d"]
+                default_interval = "15m"
+            elif time_period in ["3mo", "6mo"]:
+                intervals = ["30m", "1h", "1d", "5d"]
+                default_interval = "1d"
+            elif time_period in ["1y", "2y"]:
+                intervals = ["1d", "5d", "1wk", "1mo"]
+                default_interval = "1d"
+            else:  # 5y, 10y, max
+                intervals = ["1d", "5d", "1wk", "1mo", "3mo"]
+                default_interval = "1wk"
+            
+            interval = st.selectbox(
+                "Data Interval",
+                intervals,
+                index=intervals.index(default_interval) if default_interval in intervals else 0,
+                help="Choose data granularity"
+            )
         
         # Chart type selection
         chart_type = st.selectbox(
@@ -157,12 +186,38 @@ def main():
         show_volume = st.checkbox("Show Volume", value=True)
         show_ma = st.checkbox("Show Moving Averages", value=True)
         
+        # Prediction Model Settings
+        st.subheader("🤖 AI Prediction Settings")
+        
+        prediction_model = st.selectbox(
+            "Prediction Model",
+            ["Enhanced ML Models", "Technical Analysis Only"],
+            index=0,
+            help="Choose between advanced ML models or traditional technical analysis"
+        )
+        
+        prediction_days = st.slider(
+            "Prediction Days",
+            min_value=1,
+            max_value=10,
+            value=5,
+            help="Number of days to predict ahead"
+        )
+        
+        confidence_threshold = st.slider(
+            "Confidence Threshold (%)",
+            min_value=60,
+            max_value=95,
+            value=75,
+            help="Minimum confidence level for trading recommendations"
+        )
+        
         # Fetch data button
         if st.button("🔄 Fetch Data", type="primary", use_container_width=True):
             if symbol:
                 with st.spinner(f"Fetching data for {symbol}..."):
                     fetcher = StockDataFetcher()
-                    data = fetcher.get_stock_data(symbol, time_period)
+                    data = fetcher.get_stock_data(symbol, time_period, interval)
                     
                     if data is not None:
                         st.session_state.stock_data = data
@@ -307,9 +362,13 @@ def main():
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            # Generate prediction
-            prediction_engine = StockPredictionEngine(data)
-            prediction_result = prediction_engine.generate_prediction(days_ahead=5)
+            # Generate prediction based on selected model
+            if prediction_model == "Enhanced ML Models":
+                prediction_engine = EnhancedPredictionEngine(data)
+                prediction_result = prediction_engine.generate_enhanced_prediction(days_ahead=prediction_days)
+            else:
+                prediction_engine = StockPredictionEngine(data)
+                prediction_result = prediction_engine.generate_prediction(days_ahead=prediction_days)
             
             if prediction_result:
                 # Create prediction chart
@@ -336,10 +395,19 @@ def main():
                 )
                 
                 # Calculate investment returns
-                investment_returns = prediction_engine.calculate_investment_returns(
-                    prediction_result, 
-                    investment_amount
-                )
+                if hasattr(prediction_engine, 'calculate_investment_returns'):
+                    investment_returns = prediction_engine.calculate_investment_returns(
+                        prediction_result, 
+                        investment_amount
+                    )
+                else:
+                    # Fallback calculation for basic engine
+                    from utils.prediction_engine import StockPredictionEngine
+                    fallback_engine = StockPredictionEngine(data)
+                    investment_returns = fallback_engine.calculate_investment_returns(
+                        prediction_result, 
+                        investment_amount
+                    )
                 
                 if investment_returns:
                     # Create investment dataframe
@@ -458,15 +526,42 @@ def main():
                         if 'support_1' in sr:
                             st.metric("S1", f"${sr['support_1']}")
                 
-                # Signal breakdown
-                with st.expander("🔍 Signal Analysis"):
-                    st.subheader("Individual Signals")
-                    signals = prediction_result['signals']
+                # Enhanced model information
+                if prediction_model == "Enhanced ML Models" and 'ensemble_info' in prediction_result:
+                    ensemble_info = prediction_result['ensemble_info']
                     
-                    for signal_name, signal_value in signals.items():
-                        signal_display = signal_name.replace('_', ' ').title()
-                        signal_emoji = "🟢" if signal_value > 0.3 else "🔴" if signal_value < -0.3 else "🟡"
-                        st.write(f"{signal_emoji} **{signal_display}**: {signal_value:.3f}")
+                    with st.expander("🤖 ML Model Details"):
+                        if ensemble_info.get('models_used', 0) > 0:
+                            st.write(f"**Models Used**: {ensemble_info['models_used']}")
+                            if 'best_model' in ensemble_info:
+                                st.write(f"**Best Model**: {ensemble_info['best_model']}")
+                            if 'prediction_variance' in ensemble_info:
+                                st.write(f"**Model Agreement**: {1-ensemble_info['prediction_variance']:.3f}")
+                            
+                            # Show model predictions if available
+                            if 'model_predictions' in prediction_result:
+                                st.subheader("Individual Model Predictions")
+                                for model, pred in prediction_result['model_predictions'].items():
+                                    st.write(f"**{model.replace('_', ' ').title()}**: {pred:.4f}")
+                            
+                            # Show model performance if available
+                            if 'model_scores' in prediction_result:
+                                st.subheader("Model Performance")
+                                for model, score in prediction_result['model_scores'].items():
+                                    st.write(f"**{model.replace('_', ' ').title()}**: {score:.1%} accuracy")
+                        else:
+                            st.write("**Fallback**: Using technical analysis (insufficient data for ML)")
+                
+                # Signal breakdown (for technical analysis or fallback)
+                if 'signals' in prediction_result:
+                    with st.expander("🔍 Signal Analysis"):
+                        st.subheader("Individual Signals")
+                        signals = prediction_result['signals']
+                        
+                        for signal_name, signal_value in signals.items():
+                            signal_display = signal_name.replace('_', ' ').title()
+                            signal_emoji = "🟢" if signal_value > 0.3 else "🔴" if signal_value < -0.3 else "🟡"
+                            st.write(f"{signal_emoji} **{signal_display}**: {signal_value:.3f}")
             else:
                 st.warning("⚠️ Not enough data for prediction. Need at least 50 data points.")
         
