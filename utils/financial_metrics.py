@@ -224,7 +224,7 @@ class FinancialMetrics:
         Returns:
             dict: Price targets
         """
-        if len(self.data) < 50:
+        if len(self.data) < 50 or self.prices is None:
             return {'target_high': np.nan, 'target_low': np.nan}
         
         current_price = self.prices.iloc[-1]
@@ -253,7 +253,7 @@ class FinancialMetrics:
         """
         summary = {}
         
-        if len(self.data) > 0:
+        if len(self.data) > 0 and self.prices is not None:
             current_price = self.prices.iloc[-1]
             
             # Basic metrics

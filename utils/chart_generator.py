@@ -12,9 +12,9 @@ class ChartGenerator:
         self.dark_theme = {
             'plot_bgcolor': '#0E1117',
             'paper_bgcolor': '#0E1117',
-            'font_color': '#FAFAFA',
-            'grid_color': '#262730'
+            'font_color': '#FAFAFA'
         }
+        self.grid_color = '#262730'
     
     def create_candlestick_chart(self, data, symbol, show_volume=True, show_ma=True):
         """
@@ -112,8 +112,8 @@ class ChartGenerator:
         )
         
         # Update x-axis
-        fig.update_xaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
-        fig.update_yaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
+        fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
+        fig.update_yaxes(showgrid=True, gridcolor=self.grid_color)
         
         return fig
     
@@ -194,8 +194,8 @@ class ChartGenerator:
             **self.dark_theme
         )
         
-        fig.update_xaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
-        fig.update_yaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
+        fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
+        fig.update_yaxes(showgrid=True, gridcolor=self.grid_color)
         
         return fig
     
@@ -277,8 +277,8 @@ class ChartGenerator:
             **self.dark_theme
         )
         
-        fig.update_xaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
-        fig.update_yaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
+        fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
+        fig.update_yaxes(showgrid=True, gridcolor=self.grid_color)
         
         return fig
     
@@ -368,9 +368,9 @@ class ChartGenerator:
             row=2, col=1
         )
         
-        # RSI overbought/oversold lines
-        fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.7, row=2, col=1)
-        fig.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.7, row=2, col=1)
+        # RSI overbought/oversold lines  
+        fig.add_hline(y=70, line_dash="dash", line_color="red", opacity=0.7)
+        fig.add_hline(y=30, line_dash="dash", line_color="green", opacity=0.7)
         
         # MACD
         fig.add_trace(
@@ -417,8 +417,8 @@ class ChartGenerator:
             **self.dark_theme
         )
         
-        fig.update_xaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
-        fig.update_yaxes(showgrid=True, gridcolor=self.dark_theme['grid_color'])
+        fig.update_xaxes(showgrid=True, gridcolor=self.grid_color)
+        fig.update_yaxes(showgrid=True, gridcolor=self.grid_color)
         
         return fig
     
