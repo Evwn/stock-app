@@ -14,6 +14,7 @@ from utils.chart_generator import ChartGenerator
 from utils.financial_metrics import FinancialMetrics
 from utils.prediction_engine import StockPredictionEngine
 from utils.enhanced_prediction_engine import EnhancedPredictionEngine
+from utils.advanced_technical_analyzer import AdvancedTechnicalAnalyzer
 
 # Page configuration
 st.set_page_config(
@@ -438,7 +439,7 @@ def main():
                     investment_df = pd.DataFrame(investment_returns)
                     
                     # Display investment progression
-                    if input_method == "Lot Size (shares)":
+                    if input_method == "Lot Size (shares)" and 'lot_size' in locals():
                         st.subheader(f"💸 {lot_size:,} Shares Investment Projection (${investment_amount:,.2f})")
                     else:
                         st.subheader(f"💸 ${investment_amount:,.2f} Investment Projection")
@@ -485,7 +486,7 @@ def main():
                     )
                 
                 with col_download2:
-                    if investment_returns and 'investment_df' in locals():
+                    if investment_returns and 'investment_df' in locals() and investment_df is not None:
                         investment_csv = investment_df.to_csv(index=False)
                         st.download_button(
                             label="📥 Download Investment Plan",
@@ -591,6 +592,191 @@ def main():
                             st.write(f"{signal_emoji} **{signal_display}**: {signal_value:.3f}")
             else:
                 st.warning("⚠️ Not enough data for prediction. Need at least 50 data points.")
+        
+        # Advanced Technical Analysis Section
+        st.header("🎯 Advanced Technical Setup Analysis")
+        st.markdown("*Professional multi-timeframe technical analysis with precise entry signals*")
+        
+        with st.spinner("🔍 Analyzing multi-timeframe setups..."):
+            advanced_analyzer = AdvancedTechnicalAnalyzer(symbol)
+            setup_analysis = advanced_analyzer.analyze()
+        
+        if setup_analysis:
+            # Setup Score and Recommendation
+            col_setup1, col_setup2, col_setup3 = st.columns(3)
+            
+            with col_setup1:
+                score_color = "🟢" if setup_analysis['setup_score'] >= 70 else "🟡" if setup_analysis['setup_score'] >= 50 else "🔴"
+                st.metric(
+                    label="Setup Score",
+                    value=f"{score_color} {setup_analysis['setup_score']}/100"
+                )
+            
+            with col_setup2:
+                rec_color = {
+                    "STRONG BUY SETUP": "🟢",
+                    "STRONG SELL SETUP": "🔴", 
+                    "HOLD/MONITOR": "🟡",
+                    "NO SETUP": "⚫"
+                }.get(setup_analysis['recommendation'], "⚫")
+                
+                st.metric(
+                    label="Trading Setup",
+                    value=f"{rec_color} {setup_analysis['recommendation']}"
+                )
+            
+            with col_setup3:
+                st.metric(
+                    label="Confidence",
+                    value=f"{setup_analysis['confidence']:.0f}%"
+                )
+            
+            # Entry Details (only if setup exists)
+            if setup_analysis['recommendation'] not in ["NO SETUP", "HOLD/MONITOR"]:
+                st.subheader("📍 Entry Setup Details")
+                
+                col_entry1, col_entry2 = st.columns(2)
+                
+                with col_entry1:
+                    st.markdown("**🎯 Entry Parameters**")
+                    if setup_analysis['entry_price']:
+                        st.write(f"**Entry Price**: ${setup_analysis['entry_price']}")
+                    if setup_analysis['stop_loss']:
+                        st.write(f"**Stop Loss**: ${setup_analysis['stop_loss']}")
+                    if setup_analysis['targets']:
+                        st.write("**Targets**:")
+                        for i, target in enumerate(setup_analysis['targets'], 1):
+                            st.write(f"  • Target {i}: ${target}")
+                
+                with col_entry2:
+                    if setup_analysis['stop_loss_management']:
+                        st.markdown("**🛡️ Stop Loss Management**")
+                        for rule in setup_analysis['stop_loss_management']:
+                            st.write(f"• {rule}")
+            
+            # Setup Signals
+            if setup_analysis['signals']:
+                with st.expander("🔍 Setup Analysis Signals"):
+                    st.markdown("**Confluence Factors Supporting This Setup:**")
+                    for signal in setup_analysis['signals']:
+                        st.write(f"✓ {signal}")
+            
+            # Multi-Timeframe Analysis
+            with st.expander("📊 Multi-Timeframe Confirmation"):
+                mtf_data = []
+                for timeframe, data in setup_analysis['multi_timeframe'].items():
+                    trend_emoji = "🟢" if data['trend'] == 'bullish' else "🔴"
+                    mtf_data.append({
+                        'Timeframe': timeframe.title(),
+                        'Trend': f"{trend_emoji} {data['trend'].title()}",
+                        'Momentum %': f"{data['momentum']:+.2f}%",
+                        'Above EMA20': "✅" if data['price_above_ema20'] else "❌",
+                        'EMA Alignment': "✅" if data['ema20_above_ema50'] else "❌"
+                    })
+                
+                mtf_df = pd.DataFrame(mtf_data)
+                st.dataframe(mtf_df, use_container_width=True)
+            
+            # Support & Resistance Levels
+            with st.expander("🏗️ Support & Resistance Analysis"):
+                sr_analysis = setup_analysis['support_resistance']
+                
+                col_sr1, col_sr2 = st.columns(2)
+                
+                with col_sr1:
+                    st.markdown("**🛡️ Support Levels**")
+                    if sr_analysis['support_levels']:
+                        for level in sr_analysis['support_levels']:
+                            distance = ((sr_analysis['current_price'] - level) / sr_analysis['current_price']) * 100
+                            st.write(f"${level} ({distance:+.1f}%)")
+                    else:
+                        st.write("No significant support levels found")
+                    
+                    if sr_analysis['nearest_support']:
+                        st.write(f"**Nearest Support**: ${sr_analysis['nearest_support']}")
+                
+                with col_sr2:
+                    st.markdown("**⚡ Resistance Levels**")
+                    if sr_analysis['resistance_levels']:
+                        for level in sr_analysis['resistance_levels']:
+                            distance = ((level - sr_analysis['current_price']) / sr_analysis['current_price']) * 100
+                            st.write(f"${level} ({distance:+.1f}%)")
+                    else:
+                        st.write("No significant resistance levels found")
+                    
+                    if sr_analysis['nearest_resistance']:
+                        st.write(f"**Nearest Resistance**: ${sr_analysis['nearest_resistance']}")
+            
+            # Fibonacci Analysis
+            with st.expander("📐 Fibonacci Retracement Analysis"):
+                fib_analysis = setup_analysis['fibonacci']
+                
+                st.write(f"**Swing High**: ${fib_analysis['swing_high']}")
+                st.write(f"**Swing Low**: ${fib_analysis['swing_low']}")
+                st.write(f"**Current Price**: ${fib_analysis['current_price']}")
+                
+                col_fib1, col_fib2 = st.columns(2)
+                
+                with col_fib1:
+                    st.markdown("**🔄 Retracement Levels**")
+                    for level_name, level_price in fib_analysis['retracement_levels'].items():
+                        distance = ((level_price - fib_analysis['current_price']) / fib_analysis['current_price']) * 100
+                        st.write(f"{level_name}: ${level_price} ({distance:+.1f}%)")
+                
+                with col_fib2:
+                    st.markdown("**📏 Extension Levels**")
+                    for level_name, level_price in fib_analysis['extension_levels'].items():
+                        if level_price > 0:  # Only show positive prices
+                            distance = ((level_price - fib_analysis['current_price']) / fib_analysis['current_price']) * 100
+                            st.write(f"{level_name}: ${level_price} ({distance:+.1f}%)")
+            
+            # Trendline Analysis
+            if setup_analysis['trendlines']:
+                with st.expander("📈 Trendline Analysis"):
+                    for trendline_type, trendline_data in setup_analysis['trendlines'].items():
+                        trendline_name = trendline_type.replace('_', ' ').title()
+                        direction_emoji = "📈" if trendline_data['direction'] == 'ascending' else "📉"
+                        
+                        st.write(f"**{direction_emoji} {trendline_name}**")
+                        st.write(f"Current Level: ${trendline_data['current_level']}")
+                        st.write(f"Strength: {trendline_data['strength']:.3f}")
+                        st.write(f"Direction: {trendline_data['direction'].title()}")
+                        st.write("---")
+            
+            # Volume & Momentum Analysis
+            with st.expander("📊 Volume & Momentum Analysis"):
+                vol_analysis = setup_analysis['volume']
+                momentum_analysis = setup_analysis['momentum']
+                
+                col_vol1, col_vol2 = st.columns(2)
+                
+                with col_vol1:
+                    st.markdown("**📈 Volume Analysis**")
+                    st.write(f"Current Volume: {vol_analysis['current_volume']:,}")
+                    st.write(f"Average Volume: {vol_analysis['average_volume']:,}")
+                    st.write(f"Volume Ratio: {vol_analysis['volume_ratio']}x")
+                    st.write(f"Volume Trend: {vol_analysis['volume_trend'].title()}")
+                    confirmation = "✅ Strong" if vol_analysis['volume_confirmation'] else "⚠️ Weak"
+                    st.write(f"Volume Confirmation: {confirmation}")
+                
+                with col_vol2:
+                    st.markdown("**⚡ Momentum Analysis**")
+                    st.write(f"Current RSI: {momentum_analysis['current_rsi']}")
+                    
+                    if momentum_analysis['bearish_divergence']:
+                        st.write("🔴 **Bearish Divergence Detected**")
+                        st.write("Price making higher highs while RSI makes lower highs")
+                    elif momentum_analysis['bullish_divergence']:
+                        st.write("🟢 **Bullish Divergence Detected**")
+                        st.write("Price making lower lows while RSI makes higher lows")
+                    else:
+                        st.write("No significant momentum divergence")
+            
+            # Analysis timestamp
+            st.caption(f"Analysis completed at: {setup_analysis['analysis_timestamp']}")
+            
+        else:
+            st.error("Unable to perform advanced technical analysis. Please check the stock symbol and try again.")
         
     else:
         # Welcome message when no data is loaded
